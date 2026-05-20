@@ -1,0 +1,32 @@
+# Environment variables
+.env
+
+# Downloads
+downloads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Screenshots (test artifacts)
+screenshot_*.png
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive data
+AppID.md
