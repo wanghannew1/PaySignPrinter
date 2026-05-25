@@ -19,13 +19,29 @@ def load_user_mapping():
     return {}
 
 
-USER_MAPPING = load_user_mapping()
-
-
 def get_user_name(user_id):
     if not user_id:
         return "未知"
-    return USER_MAPPING.get(str(user_id), str(user_id))
+    mapping = st.session_state.get("user_mapping", {})
+    return mapping.get(str(user_id), str(user_id))
+
+
+def process_contacts_excel(uploaded_file):
+    import pandas as pd
+    try:
+        df = pd.read_excel(uploaded_file, header=1)
+        df = df.iloc[1:].reset_index(drop=True)
+        mapping = {}
+        for _, row in df.iterrows():
+            user_id = str(row.iloc[0]).strip()
+            name = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+            if user_id and name and user_id != "nan":
+                mapping[user_id] = name
+        return mapping
+    except Exception as e:
+        st.error(f"解析Excel失败: {e}")
+        return None
+
 
 st.set_page_config(page_title="钉钉审批Demo", layout="wide")
 
@@ -59,6 +75,32 @@ else:
 
 
 with st.sidebar:
+    st.header("👥 通讯录导入")
+
+    uploaded_file = st.file_uploader(
+        "上传通讯录Excel",
+        type=["xlsx", "xls"],
+        help="支持钉钉导出的通讯录模板",
+    )
+
+    if "user_mapping" not in st.session_state:
+        st.session_state.user_mapping = load_user_mapping()
+
+    if uploaded_file is not None:
+        mapping = process_contacts_excel(uploaded_file)
+        if mapping:
+            mapping_path = Path(__file__).parent / "user_mapping.json"
+            with open(mapping_path, "w", encoding="utf-8") as f:
+                json.dump(mapping, f, ensure_ascii=False, indent=2)
+            st.session_state.user_mapping = mapping
+            st.success(f"✓ 导入成功，共 {len(mapping)} 条记录")
+            st.info("刷新页面后生效")
+
+    current_count = len(st.session_state.get("user_mapping", {}))
+    if current_count > 0:
+        st.caption(f"当前通讯录：{current_count} 人")
+
+    st.divider()
     st.header("📋 审批查询")
 
     col1, col2 = st.columns(2)
