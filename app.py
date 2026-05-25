@@ -182,21 +182,109 @@ with st.sidebar:
         st.subheader("审批列表")
 
         instance_info = st.session_state.get("instance_info", {})
+        selected_for_batch = []
+
         for idx, instance_id in enumerate(st.session_state.instance_ids):
             info = instance_info.get(instance_id, {})
             title = info.get("title", "未知标题")
             status = info.get("status", "UNKNOWN")
             status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
-            button_label = f"{status_emoji} {title}"
-            if st.button(
-                button_label,
-                key=f"btn_{idx}",
-                use_container_width=True,
-            ):
-                st.session_state.selected_instance_id = instance_id
-                st.rerun()
 
-if "selected_instance_id" not in st.session_state:
+            cols = st.columns([0.5, 4])
+            with cols[0]:
+                is_checked = st.checkbox("", key=f"chk_{idx}", label_visibility="collapsed")
+            with cols[1]:
+                button_label = f"{status_emoji} {title}"
+                if st.button(
+                    button_label,
+                    key=f"btn_{idx}",
+                    use_container_width=True,
+                ):
+                    st.session_state.selected_instance_id = instance_id
+                    st.rerun()
+
+            if is_checked:
+                selected_for_batch.append(instance_id)
+
+        if selected_for_batch:
+            st.divider()
+            st.write(f"已选择 {len(selected_for_batch)} 条审批")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("📥 批量下载", use_container_width=True):
+                    st.session_state.batch_action = "download"
+                    st.session_state.batch_instances = selected_for_batch
+                    st.rerun()
+            with col2:
+                if st.button("🖨️ 批量签名并打印", type="primary", use_container_width=True):
+                    st.session_state.batch_action = "sign_and_print"
+                    st.session_state.batch_instances = selected_for_batch
+                    st.rerun()
+
+if "batch_action" in st.session_state and st.session_state.batch_action:
+    action = st.session_state.batch_action
+    instances = st.session_state.get("batch_instances", [])
+
+    st.header("🔄 批量处理")
+    st.write(f"正在处理 {len(instances)} 条审批...")
+
+    progress_bar = st.progress(0)
+    results_container = st.container()
+
+    signatures_dir = Path("/home/ubuntu/excel_example/signatures")
+    output_dir = Path("./downloads")
+
+    import importlib
+    import dingtalk_api
+    importlib.reload(dingtalk_api)
+
+    from batch_processor import process_single_approval
+
+    success_count = 0
+    skip_count = 0
+    fail_count = 0
+
+    for i, inst_id in enumerate(instances):
+        progress = (i + 1) / len(instances)
+        progress_bar.progress(min(progress, 0.99))
+
+        result = process_single_approval(
+            inst_id,
+            st.session_state.access_token,
+            signatures_dir,
+            output_dir,
+            dingtalk_api,
+        )
+
+        with results_container:
+            if result["skipped"]:
+                st.warning(f"⏭️ {inst_id[:20]}...: {result['message']}")
+                skip_count += 1
+            elif result["success"]:
+                st.success(f"✅ {inst_id[:20]}...: {result['message']}")
+                success_count += 1
+            else:
+                st.error(f"❌ {inst_id[:20]}...: {result['message']}")
+                fail_count += 1
+
+    progress_bar.empty()
+    st.divider()
+    st.subheader("📊 处理结果")
+    cols = st.columns(3)
+    with cols[0]:
+        st.metric("成功", success_count)
+    with cols[1]:
+        st.metric("跳过", skip_count)
+    with cols[2]:
+        st.metric("失败", fail_count)
+
+    if st.button("返回"):
+        del st.session_state.batch_action
+        del st.session_state.batch_instances
+        st.rerun()
+
+elif "selected_instance_id" not in st.session_state:
     st.info("👈 请从左侧选择一个审批实例查看详情")
 else:
     instance_id = st.session_state.selected_instance_id
