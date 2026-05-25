@@ -1,6 +1,7 @@
 import streamlit as st
 import time
 import requests
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -8,6 +9,23 @@ from dingtalk_api import (
     load_env, get_access_token, get_instance_id_list,
     get_instance_details, extract_attachments, get_download_url, download_file
 )
+
+
+def load_user_mapping():
+    mapping_path = Path(__file__).parent / "user_mapping.json"
+    if mapping_path.exists():
+        with open(mapping_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+
+USER_MAPPING = load_user_mapping()
+
+
+def get_user_name(user_id):
+    if not user_id:
+        return "未知"
+    return USER_MAPPING.get(str(user_id), str(user_id))
 
 st.set_page_config(page_title="钉钉审批Demo", layout="wide")
 
@@ -82,10 +100,11 @@ with st.sidebar:
                         progress_text.write(f"⏳ 正在加载审批信息... ({i+1}/{len(ids)})")
                         try:
                             inst_details = get_instance_details(inst_id, token)
+                            originator_id = inst_details.get("originatorUserId", "未知")
                             instance_info[inst_id] = {
                                 "title": inst_details.get("title", "未知标题"),
                                 "status": inst_details.get("status", "UNKNOWN"),
-                                "originator": inst_details.get("originatorUserId", "未知"),
+                                "originator": get_user_name(originator_id),
                                 "create_time": inst_details.get("createTime", ""),
                             }
                         except Exception:
@@ -176,7 +195,8 @@ else:
         status = details.get("status", "未知")
         status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "❓")
         st.write(f"**状态:** {status_emoji} {status}")
-        st.write(f"**发起人:** {details.get('originatorUserId', '未知')}")
+        originator_id = details.get('originatorUserId', '未知')
+        st.write(f"**发起人:** {get_user_name(originator_id)}")
         st.write(f"**部门:** {details.get('originatorDeptName', '未知')}")
         st.write(f"**创建时间:** {details.get('createTime', '未知')}")
         st.write(f"**完成时间:** {details.get('finishTime', '未知')}")
@@ -201,6 +221,8 @@ else:
                 continue
 
             show_name = record.get("showName", "未知")
+            user_id = record.get("userId", "")
+            user_name = get_user_name(user_id) if user_id else "系统"
             result = record.get("result", "NONE")
             date = record.get("date", "")
             remark = record.get("remark", "")
@@ -213,12 +235,14 @@ else:
             }.get(result, f"❓ {result}")
 
             with st.container():
-                cols = st.columns([2, 2, 3])
+                cols = st.columns([2, 2, 2, 2])
                 with cols[0]:
                     st.write(f"**{show_name}**")
                 with cols[1]:
-                    st.write(result_emoji)
+                    st.write(f"👤 {user_name}")
                 with cols[2]:
+                    st.write(result_emoji)
+                with cols[3]:
                     if remark:
                         st.write(f"💬 {remark}")
                     else:
