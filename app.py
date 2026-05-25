@@ -76,6 +76,27 @@ with st.sidebar:
                 )
                 st.session_state.instance_ids = ids
                 if ids:
+                    instance_info = {}
+                    progress_text = st.empty()
+                    for i, inst_id in enumerate(ids):
+                        progress_text.write(f"⏳ 正在加载审批信息... ({i+1}/{len(ids)})")
+                        try:
+                            inst_details = get_instance_details(inst_id, token)
+                            instance_info[inst_id] = {
+                                "title": inst_details.get("title", "未知标题"),
+                                "status": inst_details.get("status", "UNKNOWN"),
+                                "originator": inst_details.get("originatorUserId", "未知"),
+                                "create_time": inst_details.get("createTime", ""),
+                            }
+                        except Exception:
+                            instance_info[inst_id] = {
+                                "title": "加载失败",
+                                "status": "UNKNOWN",
+                                "originator": "未知",
+                                "create_time": "",
+                            }
+                    progress_text.empty()
+                    st.session_state.instance_info = instance_info
                     st.success(f"✓ 查询成功，共 {len(ids)} 条审批")
                 else:
                     st.info("未查询到符合条件的审批")
@@ -99,9 +120,15 @@ with st.sidebar:
         st.divider()
         st.subheader("审批列表")
 
+        instance_info = st.session_state.get("instance_info", {})
         for idx, instance_id in enumerate(st.session_state.instance_ids):
+            info = instance_info.get(instance_id, {})
+            title = info.get("title", "未知标题")
+            status = info.get("status", "UNKNOWN")
+            status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
+            button_label = f"{status_emoji} {title}"
             if st.button(
-                f"📋 {instance_id[:20]}...",
+                button_label,
                 key=f"btn_{idx}",
                 use_container_width=True,
             ):
@@ -113,7 +140,6 @@ if "selected_instance_id" not in st.session_state:
 else:
     instance_id = st.session_state.selected_instance_id
 
-    # Fetch details
     with st.spinner("正在获取审批详情..."):
         try:
             token = st.session_state.access_token
@@ -163,6 +189,44 @@ else:
                 name = item.get("name", "未知字段")
                 value = item.get("value", "")
                 st.write(f"**{name}:** {value}")
+
+    st.divider()
+    st.subheader("📋 审批流程")
+
+    operation_records = details.get("operationRecords", [])
+    if operation_records:
+        for record in operation_records:
+            record_type = record.get("type", "")
+            if record_type == "START_PROCESS_INSTANCE":
+                continue
+
+            show_name = record.get("showName", "未知")
+            result = record.get("result", "NONE")
+            date = record.get("date", "")
+            remark = record.get("remark", "")
+
+            result_emoji = {
+                "AGREE": "✅ 同意",
+                "REFUSE": "❌ 拒绝",
+                "NONE": "➡️ 转交/抄送",
+                "BACK": "↩️ 退回",
+            }.get(result, f"❓ {result}")
+
+            with st.container():
+                cols = st.columns([2, 2, 3])
+                with cols[0]:
+                    st.write(f"**{show_name}**")
+                with cols[1]:
+                    st.write(result_emoji)
+                with cols[2]:
+                    if remark:
+                        st.write(f"💬 {remark}")
+                    else:
+                        st.write("—")
+                if date:
+                    st.caption(f"🕐 {date}")
+    else:
+        st.info("暂无审批记录")
 
     # Attachments section
     st.divider()
