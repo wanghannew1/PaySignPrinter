@@ -202,8 +202,8 @@ def process_single_approval(
         result["message"] = f"获取详情失败: {e}"
         return result
 
-    title = details.get("title", "未知标题")
-    result["title"] = title
+    business_id = details.get("businessId", instance_id[:20])
+    result["business_id"] = business_id
 
     passed, msg = is_approval_passed(details)
     if not passed:
@@ -223,8 +223,7 @@ def process_single_approval(
         result["message"] = "无附件"
         return result
 
-    # Use title as directory name
-    instance_dir = output_base_dir / sanitize_dir_name(title)
+    instance_dir = output_base_dir / sanitize_dir_name(business_id)
     instance_dir.mkdir(parents=True, exist_ok=True)
 
     for att in attachments:

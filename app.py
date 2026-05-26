@@ -145,6 +145,7 @@ with st.sidebar:
                             inst_details = get_instance_details(inst_id, token)
                             originator_id = inst_details.get("originatorUserId", "未知")
                             instance_info[inst_id] = {
+                                "business_id": inst_details.get("businessId", inst_id[:20]),
                                 "title": inst_details.get("title", "未知标题"),
                                 "status": inst_details.get("status", "UNKNOWN"),
                                 "originator": get_user_name(originator_id),
@@ -152,6 +153,7 @@ with st.sidebar:
                             }
                         except Exception:
                             instance_info[inst_id] = {
+                                "business_id": inst_id[:20],
                                 "title": "加载失败",
                                 "status": "UNKNOWN",
                                 "originator": "未知",
@@ -187,7 +189,7 @@ with st.sidebar:
 
         for idx, instance_id in enumerate(st.session_state.instance_ids):
             info = instance_info.get(instance_id, {})
-            title = info.get("title", "未知标题")
+            business_id = info.get("business_id", inst_id[:20])
             status = info.get("status", "UNKNOWN")
             status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
 
@@ -195,7 +197,7 @@ with st.sidebar:
             with cols[0]:
                 is_checked = st.checkbox("", key=f"chk_{idx}", label_visibility="collapsed")
             with cols[1]:
-                button_label = f"{status_emoji} {title}"
+                button_label = f"{status_emoji} {business_id}"
                 if st.button(
                     button_label,
                     key=f"btn_{idx}",
