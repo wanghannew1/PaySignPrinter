@@ -189,7 +189,7 @@ with st.sidebar:
 
         for idx, instance_id in enumerate(st.session_state.instance_ids):
             info = instance_info.get(instance_id, {})
-            business_id = info.get("business_id", inst_id[:20])
+            business_id = info.get("business_id", instance_id[:20])
             status = info.get("status", "UNKNOWN")
             status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
 
