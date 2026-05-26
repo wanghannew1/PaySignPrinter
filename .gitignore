@@ -34,3 +34,6 @@ AppID.md
 
 # User data
 user_mapping.json
+
+# OpenCode workspace
+.omo/
