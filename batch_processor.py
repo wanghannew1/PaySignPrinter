@@ -122,8 +122,7 @@ def insert_signature_to_excel(
                 continue
 
             row, col = positions[role]
-            # Place signature in the next column to the right
-            target_col = col + 1
+            target_col = col + 2
 
             img = XLImage(str(sig_path))
             img.width = 120
