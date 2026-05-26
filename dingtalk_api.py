@@ -1,4 +1,6 @@
-"""DingTalk API module for PaySignPrinter."""
+"""
+DingTalk API module for PaySignPrinter.
+"""
 import os
 import json
 import requests
@@ -30,31 +32,28 @@ def load_env():
 
 
 def get_access_token(app_key, app_secret):
-    """Get access token from DingTalk."""
+    """Get access token from DingTalk API."""
     url = f"{DINGTALK_BASE_URL}/oauth2/accessToken"
     payload = {"appKey": app_key, "appSecret": app_secret}
-    headers = {"Content-Type": "application/json"}
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
         data = response.json()
-        print(
-            f"Token response: {json.dumps(data, indent=2, ensure_ascii=False)}"
-        )
-
-        access_token = data.get("accessToken")
-        if not access_token:
-            raise ValueError("Response missing accessToken")
-
+        token = data.get("accessToken")
+        print(f"Token response: {json.dumps(data, indent=2)}")
         print("✓ 获取访问令牌成功")
-        return access_token
+        return token
     except requests.exceptions.RequestException as e:
         raise SystemExit(f"获取访问令牌失败: {e}")
 
 
 def get_instance_id_list(
-    access_token, process_code, start_time, end_time=None, statuses=None
+    access_token,
+    process_code,
+    start_time,
+    end_time,
+    statuses=None,
 ):
     """Get list of approval instance IDs with pagination."""
     if statuses is None:
@@ -229,5 +228,15 @@ def download_file(
         size_kb = file_path.stat().st_size / 1024
         print(f"✓ 附件下载完成: {file_path} ({size_kb:.1f}KB)")
         return str(file_path)
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(f"下载附件失败: {e}")
+
+
+def download_file_bytes(download_url):
+    """Download file and return bytes."""
+    try:
+        response = requests.get(download_url, timeout=60)
+        response.raise_for_status()
+        return response.content
     except requests.exceptions.RequestException as e:
         raise SystemExit(f"下载附件失败: {e}")

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dingtalk_api import (
     load_env, get_access_token, get_instance_id_list,
-    get_instance_details, extract_attachments, get_download_url, download_file
+    get_instance_details, extract_attachments, get_download_url, download_file, download_file_bytes
 )
 
 
@@ -45,6 +45,7 @@ def process_contacts_excel(uploaded_file):
 
 st.set_page_config(page_title="钉钉审批Demo", layout="wide")
 
+Path("./signatures").mkdir(exist_ok=True)
 # Ensure downloads directory exists
 Path("./downloads").mkdir(exist_ok=True)
 
@@ -232,7 +233,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     progress_bar = st.progress(0)
     results_container = st.container()
 
-    signatures_dir = Path("/home/ubuntu/excel_example/signatures")
+    signatures_dir = Path("./signatures")
     output_dir = Path("./downloads")
 
     import importlib
@@ -399,44 +400,23 @@ else:
             size_str = f"({file_size / 1024:.1f}KB)" if file_size else ""
             st.write(f"{idx+1}. **{file_name}** {size_str}")
 
-        # Download button
-        if st.button("📥 下载所有附件", type="primary"):
-            progress_container = st.container()
+        for idx, att in enumerate(attachments):
+            file_name = att.get("fileName", "未知文件")
+            file_id = att.get("fileId")
 
-            for idx, att in enumerate(attachments):
-                file_id = att.get("fileId")
-                file_name = att.get("fileName", "unknown")
-                file_type = att.get("fileType", "")
-
-                with progress_container:
-                    st.write(f"⏳ {file_name} - 等待中...")
-
+            cols = st.columns([3, 1])
+            with cols[0]:
+                st.write(f"{idx+1}. **{file_name}**")
+            with cols[1]:
                 try:
-                    # Get download URL
-                    download_url, needs_rename = get_download_url(instance_id, file_id, token)
-
-                    with progress_container:
-                        st.write(f"⬇️ {file_name} - 下载中...")
-
-                    # Download file
-                    download_file(
-                        download_url,
-                        file_name,
-                        "./downloads",
-                        instance_id,
-                        needs_rename=needs_rename,
-                        original_file_type=file_type
+                    download_url, _ = get_download_url(instance_id, file_id, token)
+                    file_bytes = download_file_bytes(download_url)
+                    st.download_button(
+                        label="📥 下载",
+                        data=file_bytes,
+                        file_name=file_name,
+                        mime="application/octet-stream",
+                        key=f"dl_{idx}",
                     )
-
-                    with progress_container:
-                        st.write(f"✅ {file_name} - 下载完成")
-
-                except requests.exceptions.Timeout:
-                    with progress_container:
-                        st.write(f"❌ {file_name} - 下载超时")
-                except requests.exceptions.HTTPError as e:
-                    with progress_container:
-                        st.write(f"❌ {file_name} - HTTP错误: {e}")
                 except Exception as e:
-                    with progress_container:
-                        st.write(f"❌ {file_name} - 下载失败: {e}")
+                    st.error(f"下载失败: {e}")

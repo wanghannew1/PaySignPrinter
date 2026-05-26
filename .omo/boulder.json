@@ -1,0 +1,213 @@
+{
+  "schema_version": 2,
+  "active_work_id": "dingtalk-approval-demo-bd02e8d5",
+  "works": {
+    "dingtalk-approval-demo-bd02e8d5": {
+      "work_id": "dingtalk-approval-demo-bd02e8d5",
+      "active_plan": "/home/ubuntu/coding/PaySignPrinter/.omo/plans/dingtalk-approval-demo.md",
+      "plan_name": "dingtalk-approval-demo",
+      "status": "completed",
+      "started_at": "2026-05-20T07:46:17.704Z",
+      "updated_at": "2026-05-20T08:47:29.989Z",
+      "session_ids": [
+        "ses_1bd32a825ffepUscKslk68f5V0",
+        "ses_1bb7f17bbffeIRJixkVOq7f0fQ",
+        "ses_1bb7e877effesicOaqGlxl735S",
+        "ses_1bb7e6e10ffexJT5wbqnjvR7vM",
+        "ses_1bb7e419bffe7XtGwcacD5oscP"
+      ],
+      "session_origins": {
+        "ses_1bd32a825ffepUscKslk68f5V0": "direct",
+        "ses_1bb7f17bbffeIRJixkVOq7f0fQ": "appended",
+        "ses_1bb7e877effesicOaqGlxl735S": "appended",
+        "ses_1bb7e6e10ffexJT5wbqnjvR7vM": "appended",
+        "ses_1bb7e419bffe7XtGwcacD5oscP": "appended"
+      },
+      "agent": "atlas",
+      "task_sessions": {
+        "todo:1": {
+          "task_key": "todo:1",
+          "task_label": "1",
+          "task_title": "Project Scaffolding + Streamlit Config",
+          "session_id": "ses_1bba59142fferASMLvucV7VEzM",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-05-20T07:53:08.233Z",
+          "started_at": "2026-05-20T07:51:46.803Z",
+          "status": "completed",
+          "ended_at": "2026-05-20T07:53:08.233Z",
+          "elapsed_ms": 81430
+        },
+        "todo:2": {
+          "task_key": "todo:2",
+          "task_label": "2",
+          "task_title": "DingTalk API Module (6 Functions)",
+          "session_id": "ses_1bb971163ffezKWAptU0P4n6nX",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "started_at": "2026-05-20T08:03:47.468Z",
+          "status": "completed",
+          "updated_at": "2026-05-20T08:09:40.598Z",
+          "ended_at": "2026-05-20T08:09:40.598Z",
+          "elapsed_ms": 353130
+        },
+        "todo:3": {
+          "task_key": "todo:3",
+          "task_label": "3",
+          "task_title": "Streamlit App - Sidebar (审批列表)",
+          "session_id": "ses_1bb8fd032ffebzTdBKkistbl7D",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-05-20T08:15:31.535Z",
+          "started_at": "2026-05-20T08:14:20.474Z",
+          "status": "completed",
+          "ended_at": "2026-05-20T08:15:31.535Z",
+          "elapsed_ms": 71061
+        },
+        "todo:4": {
+          "task_key": "todo:4",
+          "task_label": "4",
+          "task_title": "Streamlit App - Main Area (审批详情 + 附件下载)",
+          "session_id": "ses_1bb8a709fffeoZhEyNux5qnuuJ",
+          "agent": "Sisyphus-Junior",
+          "category": "visual-engineering",
+          "updated_at": "2026-05-20T08:20:58.107Z",
+          "started_at": "2026-05-20T08:19:56.569Z",
+          "status": "completed",
+          "ended_at": "2026-05-20T08:20:58.107Z",
+          "elapsed_ms": 61538
+        },
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "End-to-End Integration + Error Handling",
+          "session_id": "ses_1bb85e045ffejYkHX167a3CgUJ",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "updated_at": "2026-05-20T08:28:16.684Z",
+          "started_at": "2026-05-20T08:27:28.096Z",
+          "status": "completed",
+          "ended_at": "2026-05-20T08:28:16.684Z",
+          "elapsed_ms": 48588
+        },
+        "final-wave:f1": {
+          "task_key": "final-wave:f1",
+          "task_label": "F1",
+          "task_title": "**Plan Compliance Audit** — `oracle`",
+          "session_id": "ses_1bb71a8f8ffelt0cLGiZgtv5Fn",
+          "agent": "Sisyphus-Junior",
+          "category": "quick",
+          "started_at": "2026-05-20T08:30:55.123Z",
+          "status": "completed",
+          "updated_at": "2026-05-20T08:45:41.222Z",
+          "ended_at": "2026-05-20T08:45:41.222Z",
+          "elapsed_ms": 886099
+        }
+      },
+      "ended_at": "2026-05-20T08:47:29.989Z",
+      "elapsed_ms": 3672285
+    }
+  },
+  "active_plan": "/home/ubuntu/coding/PaySignPrinter/.omo/plans/dingtalk-approval-demo.md",
+  "started_at": "2026-05-20T07:46:17.704Z",
+  "status": "completed",
+  "updated_at": "2026-05-20T08:47:29.989Z",
+  "session_ids": [
+    "ses_1bd32a825ffepUscKslk68f5V0",
+    "ses_1bb7f17bbffeIRJixkVOq7f0fQ",
+    "ses_1bb7e877effesicOaqGlxl735S",
+    "ses_1bb7e6e10ffexJT5wbqnjvR7vM",
+    "ses_1bb7e419bffe7XtGwcacD5oscP"
+  ],
+  "session_origins": {
+    "ses_1bd32a825ffepUscKslk68f5V0": "direct",
+    "ses_1bb7f17bbffeIRJixkVOq7f0fQ": "appended",
+    "ses_1bb7e877effesicOaqGlxl735S": "appended",
+    "ses_1bb7e6e10ffexJT5wbqnjvR7vM": "appended",
+    "ses_1bb7e419bffe7XtGwcacD5oscP": "appended"
+  },
+  "plan_name": "dingtalk-approval-demo",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Project Scaffolding + Streamlit Config",
+      "session_id": "ses_1bba59142fferASMLvucV7VEzM",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-20T07:53:08.233Z",
+      "started_at": "2026-05-20T07:51:46.803Z",
+      "status": "completed",
+      "ended_at": "2026-05-20T07:53:08.233Z",
+      "elapsed_ms": 81430
+    },
+    "todo:2": {
+      "task_key": "todo:2",
+      "task_label": "2",
+      "task_title": "DingTalk API Module (6 Functions)",
+      "session_id": "ses_1bb971163ffezKWAptU0P4n6nX",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "started_at": "2026-05-20T08:03:47.468Z",
+      "status": "completed",
+      "updated_at": "2026-05-20T08:09:40.598Z",
+      "ended_at": "2026-05-20T08:09:40.598Z",
+      "elapsed_ms": 353130
+    },
+    "todo:3": {
+      "task_key": "todo:3",
+      "task_label": "3",
+      "task_title": "Streamlit App - Sidebar (审批列表)",
+      "session_id": "ses_1bb8fd032ffebzTdBKkistbl7D",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-20T08:15:31.535Z",
+      "started_at": "2026-05-20T08:14:20.474Z",
+      "status": "completed",
+      "ended_at": "2026-05-20T08:15:31.535Z",
+      "elapsed_ms": 71061
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Streamlit App - Main Area (审批详情 + 附件下载)",
+      "session_id": "ses_1bb8a709fffeoZhEyNux5qnuuJ",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-20T08:20:58.107Z",
+      "started_at": "2026-05-20T08:19:56.569Z",
+      "status": "completed",
+      "ended_at": "2026-05-20T08:20:58.107Z",
+      "elapsed_ms": 61538
+    },
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "End-to-End Integration + Error Handling",
+      "session_id": "ses_1bb85e045ffejYkHX167a3CgUJ",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-20T08:28:16.684Z",
+      "started_at": "2026-05-20T08:27:28.096Z",
+      "status": "completed",
+      "ended_at": "2026-05-20T08:28:16.684Z",
+      "elapsed_ms": 48588
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_1bb71a8f8ffelt0cLGiZgtv5Fn",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "started_at": "2026-05-20T08:30:55.123Z",
+      "status": "completed",
+      "updated_at": "2026-05-20T08:45:41.222Z",
+      "ended_at": "2026-05-20T08:45:41.222Z",
+      "elapsed_ms": 886099
+    }
+  },
+  "agent": "atlas",
+  "ended_at": "2026-05-20T08:47:29.989Z",
+  "elapsed_ms": 3672285
+}
