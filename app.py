@@ -477,7 +477,10 @@ else:
                 st.write(f"{idx+1}. **{file_name}**")
             with cols[1]:
                 try:
-                    download_url, _ = get_download_url(instance_id, file_id, token)
+                    download_url = cache_manager.get_cached_download_url(instance_id, file_id)
+                    if download_url is None:
+                        download_url, _ = get_download_url(instance_id, file_id, token)
+                        cache_manager.cache_download_url(instance_id, file_id, download_url)
                     file_bytes = download_file_bytes(download_url)
                     st.download_button(
                         label="📥 下载",

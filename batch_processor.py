@@ -237,9 +237,12 @@ def process_single_approval(
         file_type = att.get("fileType", "")
 
         try:
-            download_url, needs_rename = dingtalk_api_module.get_download_url(
-                instance_id, file_id, token
-            )
+            download_url = cache_manager.get_cached_download_url(instance_id, file_id)
+            if download_url is None:
+                download_url, needs_rename = dingtalk_api_module.get_download_url(
+                    instance_id, file_id, token
+                )
+                cache_manager.cache_download_url(instance_id, file_id, download_url)
             file_bytes = dingtalk_api_module.download_file_bytes(download_url)
 
             # Save to instance dir directly (no nested subdir)

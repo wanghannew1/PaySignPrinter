@@ -108,3 +108,35 @@ def get_stats() -> Dict[str, int]:
 
 def cache_file_path() -> Path:
     return CACHE_FILE
+
+
+DOWNLOAD_URL_TTL = 15 * 60
+
+
+def _download_url_cache_key(instance_id: str, file_id: str) -> str:
+    return f"{instance_id}:{file_id}"
+
+
+def get_cached_download_url(instance_id: str, file_id: str) -> Optional[str]:
+    cache = _load_cache_file()
+    key = _download_url_cache_key(instance_id, file_id)
+    entry = cache.get("download_urls", {}).get(key)
+    if entry:
+        url = entry.get("url")
+        cached_at = entry.get("cached_at", 0)
+        if url and (time.time() - cached_at) < DOWNLOAD_URL_TTL:
+            print(f"[cache] URL HIT  key={key[:40]}...")
+            return url
+    print(f"[cache] URL MISS key={key[:40]}...")
+    return None
+
+
+def cache_download_url(instance_id: str, file_id: str, url: str) -> None:
+    cache = _load_cache_file()
+    key = _download_url_cache_key(instance_id, file_id)
+    cache.setdefault("download_urls", {})[key] = {
+        "url": url,
+        "cached_at": time.time(),
+    }
+    _save_cache_file(cache)
+    print(f"[cache] URL SAVE key={key[:40]}...")
