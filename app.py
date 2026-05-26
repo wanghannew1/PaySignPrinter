@@ -283,14 +283,15 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
         )
 
         with results_container:
+            display_id = result.get("business_id", inst_id[:20])
             if result["skipped"]:
-                st.warning(f"⏭️ {inst_id[:20]}...: {result['message']}")
+                st.warning(f"⏭️ {display_id}: {result['message']}")
                 skip_count += 1
             elif result["success"]:
-                st.success(f"✅ {inst_id[:20]}...: {result['message']}")
+                st.success(f"✅ {display_id}: {result['message']}")
                 success_count += 1
             else:
-                st.error(f"❌ {inst_id[:20]}...: {result['message']}")
+                st.error(f"❌ {display_id}: {result['message']}")
                 fail_count += 1
 
     progress_bar.empty()
