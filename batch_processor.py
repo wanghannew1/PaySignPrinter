@@ -260,14 +260,19 @@ def process_single_approval(
                 )
                 if success:
                     result["signed"].extend(inserted)
-                    if print_file(signed_path):
-                        result["printed"].append(file_name)
+                    # Print disabled - uncomment when needed
+                    # if print_file(signed_path):
+                    #     result["printed"].append(file_name)
                 else:
-                    if print_file(file_path):
-                        result["printed"].append(file_name)
+                    pass
+                    # Print disabled - uncomment when needed
+                    # if print_file(file_path):
+                    #     result["printed"].append(file_name)
             else:
-                if print_file(file_path):
-                    result["printed"].append(file_name)
+                pass
+                # Print disabled - uncomment when needed
+                # if print_file(file_path):
+                #     result["printed"].append(file_name)
 
         except Exception:
             continue
@@ -275,7 +280,6 @@ def process_single_approval(
     result["success"] = True
     result["message"] = (
         f"下载 {len(result['downloaded'])} 个, "
-        f"签名 {len(result['signed'])} 处, "
-        f"打印 {len(result['printed'])} 个"
+        f"签名 {len(result['signed'])} 处"
     )
     return result

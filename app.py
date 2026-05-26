@@ -19,6 +19,20 @@ def load_user_mapping():
     return {}
 
 
+def load_settings():
+    settings_path = Path(__file__).parent / "settings.json"
+    if settings_path.exists():
+        with open(settings_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"download_path": "./downloads"}
+
+
+def save_settings(settings):
+    settings_path = Path(__file__).parent / "settings.json"
+    with open(settings_path, "w", encoding="utf-8") as f:
+        json.dump(settings, f, ensure_ascii=False, indent=2)
+
+
 def get_user_name(user_id):
     if not user_id:
         return "未知"
@@ -46,8 +60,12 @@ def process_contacts_excel(uploaded_file):
 st.set_page_config(page_title="钉钉审批Demo", layout="wide")
 
 Path("./signatures").mkdir(exist_ok=True)
-# Ensure downloads directory exists
-Path("./downloads").mkdir(exist_ok=True)
+
+if "settings" not in st.session_state:
+    st.session_state.settings = load_settings()
+
+download_path = st.session_state.settings.get("download_path", "./downloads")
+Path(download_path).mkdir(parents=True, exist_ok=True)
 
 if "access_token" not in st.session_state:
     with st.spinner("正在获取访问令牌..."):
@@ -100,6 +118,17 @@ with st.sidebar:
     current_count = len(st.session_state.get("user_mapping", {}))
     if current_count > 0:
         st.caption(f"当前通讯录：{current_count} 人")
+
+    st.divider()
+    st.header("⚙️ 下载设置")
+
+    current_path = st.session_state.settings.get("download_path", "./downloads")
+    new_path = st.text_input("下载路径", value=current_path)
+    if new_path != current_path:
+        st.session_state.settings["download_path"] = new_path
+        save_settings(st.session_state.settings)
+        Path(new_path).mkdir(parents=True, exist_ok=True)
+        st.success(f"✓ 下载路径已更新: {new_path}")
 
     st.divider()
     st.header("📋 审批查询")
@@ -213,17 +242,10 @@ with st.sidebar:
             st.divider()
             st.write(f"已选择 {len(selected_for_batch)} 条审批")
 
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("📥 批量下载", use_container_width=True):
-                    st.session_state.batch_action = "download"
-                    st.session_state.batch_instances = selected_for_batch
-                    st.rerun()
-            with col2:
-                if st.button("🖨️ 批量签名并打印", type="primary", use_container_width=True):
-                    st.session_state.batch_action = "sign_and_print"
-                    st.session_state.batch_instances = selected_for_batch
-                    st.rerun()
+            if st.button("📥 批量下载", use_container_width=True):
+                st.session_state.batch_action = "download"
+                st.session_state.batch_instances = selected_for_batch
+                st.rerun()
 
 if "batch_action" in st.session_state and st.session_state.batch_action:
     action = st.session_state.batch_action
@@ -236,7 +258,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     results_container = st.container()
 
     signatures_dir = Path("./signatures")
-    output_dir = Path("./downloads")
+    output_dir = Path(st.session_state.settings.get("download_path", "./downloads"))
 
     import importlib
     import dingtalk_api
