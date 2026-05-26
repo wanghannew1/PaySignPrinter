@@ -36,5 +36,8 @@ AppID.md
 user_mapping.json
 settings.json
 
+# Cache
+approval_cache.json
+
 # OpenCode workspace
 .omo/

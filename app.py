@@ -9,6 +9,7 @@ from dingtalk_api import (
     load_env, get_access_token, get_instance_id_list,
     get_instance_details, extract_attachments, get_download_url, download_file, download_file_bytes
 )
+import cache_manager
 
 
 def load_user_mapping():
@@ -152,26 +153,54 @@ with st.sidebar:
     selected_status = st.selectbox("审批状态", list(status_options.keys()), index=0)
     statuses = status_options[selected_status]
 
+    force_refresh = st.checkbox("🔄 强制刷新（绕过本地缓存）", value=False)
+
     if st.button("🔍 查询", type="primary", use_container_width=True):
         with st.spinner("正在查询审批列表..."):
             try:
                 env = st.session_state.env
                 token = st.session_state.access_token
-                ids = get_instance_id_list(
-                    token,
-                    env["process_code"],
-                    start_timestamp,
-                    end_timestamp,
-                    statuses,
+
+                cached_ids = None if force_refresh else cache_manager.get_cached_instance_list(
+                    start_timestamp, end_timestamp, statuses
                 )
+
+                if cached_ids is not None:
+                    ids = cached_ids
+                    st.info(f"📦 已命中本地缓存，共 {len(ids)} 条审批")
+                else:
+                    ids = get_instance_id_list(
+                        token,
+                        env["process_code"],
+                        start_timestamp,
+                        end_timestamp,
+                        statuses,
+                    )
+                    cache_manager.cache_instance_list(
+                        start_timestamp, end_timestamp, statuses, ids
+                    )
+
                 st.session_state.instance_ids = ids
                 if ids:
                     instance_info = {}
                     progress_text = st.empty()
+                    api_call_count = 0
+                    cache_hit_count = 0
                     for i, inst_id in enumerate(ids):
                         progress_text.write(f"⏳ 正在加载审批信息... ({i+1}/{len(ids)})")
                         try:
-                            inst_details = get_instance_details(inst_id, token)
+                            if not force_refresh:
+                                inst_details = cache_manager.get_cached_instance_details(inst_id)
+                                if inst_details:
+                                    cache_hit_count += 1
+                            else:
+                                inst_details = None
+
+                            if inst_details is None:
+                                inst_details = get_instance_details(inst_id, token)
+                                cache_manager.cache_instance_details(inst_id, inst_details)
+                                api_call_count += 1
+
                             originator_id = inst_details.get("originatorUserId", "未知")
                             instance_info[inst_id] = {
                                 "business_id": inst_details.get("businessId", inst_id[:20]),
@@ -190,7 +219,10 @@ with st.sidebar:
                             }
                     progress_text.empty()
                     st.session_state.instance_info = instance_info
-                    st.success(f"✓ 查询成功，共 {len(ids)} 条审批")
+                    if api_call_count > 0:
+                        st.success(f"✓ 查询成功，共 {len(ids)} 条审批（API调用 {api_call_count} 次，缓存命中 {cache_hit_count} 次）")
+                    else:
+                        st.success(f"✓ 查询成功，共 {len(ids)} 条审批（全部来自缓存）")
                 else:
                     st.info("未查询到符合条件的审批")
             except requests.exceptions.Timeout:
@@ -208,6 +240,12 @@ with st.sidebar:
                     st.error(f"❌ HTTP错误: {e}")
             except Exception as e:
                 st.error(f"❌ 查询失败: {e}")
+
+    stats = cache_manager.get_stats()
+    total = stats["hits"] + stats["misses"]
+    if total > 0:
+        hit_rate = stats["hits"] / total * 100
+        st.caption(f"💾 缓存命中率: {hit_rate:.1f}% ({stats['hits']}/{total})  |  文件: {cache_manager.cache_file_path().name}")
 
     if "instance_ids" in st.session_state and st.session_state.instance_ids:
         st.divider()
@@ -318,7 +356,12 @@ else:
     with st.spinner("正在获取审批详情..."):
         try:
             token = st.session_state.access_token
-            details = get_instance_details(instance_id, token)
+            details = cache_manager.get_cached_instance_details(instance_id)
+            if details is None:
+                details = get_instance_details(instance_id, token)
+                cache_manager.cache_instance_details(instance_id, details)
+            else:
+                st.toast("📦 已命中本地缓存")
         except requests.exceptions.Timeout:
             st.error("⏱️ 请求超时，请检查网络连接")
             st.stop()

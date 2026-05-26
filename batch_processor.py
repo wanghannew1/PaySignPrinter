@@ -13,6 +13,8 @@ import requests
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image as XLImage
 
+import cache_manager
+
 
 # Mapping from approval role showName to Excel signature position keyword
 ROLE_TO_SIGNATURE_KEYWORD = {
@@ -197,7 +199,10 @@ def process_single_approval(
     }
 
     try:
-        details = dingtalk_api_module.get_instance_details(instance_id, token)
+        details = cache_manager.get_cached_instance_details(instance_id)
+        if details is None:
+            details = dingtalk_api_module.get_instance_details(instance_id, token)
+            cache_manager.cache_instance_details(instance_id, details)
     except Exception as e:
         result["message"] = f"获取详情失败: {e}"
         return result
