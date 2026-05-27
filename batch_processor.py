@@ -99,7 +99,7 @@ def _split_merged_for_text(ws, row, col):
 
     merged = _is_cell_in_merged_range(ws, row, col)
     if not merged:
-        return col + 2
+        return col + 1
 
     cell = ws.cell(row=row, column=col)
     text = str(cell.value) if cell.value else ""
