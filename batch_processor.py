@@ -150,12 +150,33 @@ def find_all_signature_positions(ws) -> Dict[str, Tuple[int, int]]:
     return positions
 
 
+def _extract_first_row_title(ws) -> Optional[str]:
+    """Find the first non-empty cell in row 1 as the table title."""
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=1, column=col)
+        if cell.value:
+            return str(cell.value).strip()
+    return None
+
+
+def _build_output_path(excel_path: Path, output_path: Path, ws) -> Path:
+    """If the original file is an unrenamed export (tddd_dialog*), append row-1 title."""
+    original_name = excel_path.name
+    if original_name.lower().startswith("tddd_dialog"):
+        title = _extract_first_row_title(ws)
+        if title:
+            safe_title = sanitize_dir_name(title)
+            new_name = f"signed_{Path(original_name).stem}-{safe_title}.xlsx"
+            return output_path.parent / new_name
+    return output_path
+
+
 def _insert_signature_to_excel_openpyxl(
     excel_path: Path,
     approvers: List[Dict],
     signatures_dir: Path,
     output_path: Path,
-) -> Tuple[bool, List[str]]:
+) -> Tuple[bool, List[str], Path]:
     inserted_roles = []
     try:
         wb = load_workbook(str(excel_path))
@@ -163,7 +184,7 @@ def _insert_signature_to_excel_openpyxl(
 
         positions = find_all_signature_positions(ws)
         if not positions:
-            return False, []
+            return False, [], output_path
 
         for approver in approvers:
             role = approver.get("role")
@@ -188,11 +209,12 @@ def _insert_signature_to_excel_openpyxl(
             ws.add_image(img, cell_addr)
             inserted_roles.append(role)
 
-        wb.save(str(output_path))
-        return len(inserted_roles) > 0, inserted_roles
+        actual_output = _build_output_path(excel_path, output_path, ws)
+        wb.save(str(actual_output))
+        return len(inserted_roles) > 0, inserted_roles, actual_output
     except Exception as e:
         print(f"插入签名失败: {e}")
-        return False, []
+        return False, [], output_path
 
 
 def _convert_xls_to_xlsx_windows(xls_path: Path) -> Optional[Path]:
@@ -239,16 +261,16 @@ def _insert_signature_to_excel_windows(
     approvers: List[Dict],
     signatures_dir: Path,
     output_path: Path,
-) -> Tuple[bool, List[str]]:
+) -> Tuple[bool, List[str], Path]:
     xlsx_path = _convert_xls_to_xlsx_windows(excel_path)
     if xlsx_path is None:
-        return False, []
+        return False, [], output_path
 
     try:
-        result = _insert_signature_to_excel_openpyxl(
+        success, inserted, actual_output = _insert_signature_to_excel_openpyxl(
             xlsx_path, approvers, signatures_dir, output_path
         )
-        return result
+        return success, inserted, actual_output
     finally:
         try:
             xlsx_path.unlink()
@@ -261,7 +283,7 @@ def insert_signature_to_excel(
     approvers: List[Dict],
     signatures_dir: Path,
     output_path: Path,
-) -> Tuple[bool, List[str]]:
+) -> Tuple[bool, List[str], Path]:
     ext = excel_path.suffix.lower()
     if platform.system() == "Windows" and ext == ".xls":
         return _insert_signature_to_excel_windows(
@@ -396,13 +418,13 @@ def process_single_approval(
             if file_type in ("xlsx", "xls") or file_path.suffix in (".xlsx", ".xls"):
                 signed_name = f"signed_{file_path.stem}.xlsx"
                 signed_path = instance_dir / signed_name
-                success, inserted = insert_signature_to_excel(
+                success, inserted, actual_signed_path = insert_signature_to_excel(
                     file_path, approvers, signatures_dir, signed_path
                 )
                 if success:
                     result["signed"].extend(inserted)
                     # Print disabled - uncomment when needed
-                    # if print_file(signed_path):
+                    # if print_file(actual_signed_path):
                     #     result["printed"].append(file_name)
                 else:
                     pass
