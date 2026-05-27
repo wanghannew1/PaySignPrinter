@@ -260,14 +260,22 @@ with st.sidebar:
             status = info.get("status", "UNKNOWN")
             status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
 
+            is_selected = instance_id == st.session_state.get("selected_instance_id")
+
             cols = st.columns([0.5, 4])
             with cols[0]:
                 is_checked = st.checkbox("", key=f"chk_{idx}", label_visibility="collapsed")
             with cols[1]:
-                button_label = f"{status_emoji} {business_id}"
+                if is_selected:
+                    button_label = f"🔍 {business_id}"
+                    btn_type = "primary"
+                else:
+                    button_label = f"{status_emoji} {business_id}"
+                    btn_type = "secondary"
                 if st.button(
                     button_label,
                     key=f"btn_{idx}",
+                    type=btn_type,
                     use_container_width=True,
                 ):
                     st.session_state.selected_instance_id = instance_id
