@@ -101,18 +101,15 @@ def _split_merged_for_text(ws, row, col):
     if not merged:
         return col + 2
 
-    text = str(ws.cell(row=row, column=col).value) if ws.cell(row=row, column=col).value else ""
+    cell = ws.cell(row=row, column=col)
+    text = str(cell.value) if cell.value else ""
 
-    def get_width(c):
-        letter = get_column_letter(c)
-        dim = ws.column_dimensions.get(letter)
-        return dim.width if dim and dim.width else 8.43
+    if "部长、分管副总签字" in text:
+        needed_cols = 3
+    else:
+        needed_cols = 2
 
     total_cols = merged.max_col - merged.min_col + 1
-    total_width = sum(get_width(c) for c in range(merged.min_col, merged.max_col + 1))
-    text_span = _estimate_text_span(text, total_width)
-    needed_cols = min(max(1, int(text_span) + 1), total_cols)
-
     if needed_cols >= total_cols:
         return merged.max_col + 1
 
@@ -120,9 +117,8 @@ def _split_merged_for_text(ws, row, col):
     ws.unmerge_cells(merged_str)
 
     new_end = merged.min_col + needed_cols - 1
-    if new_end > merged.min_col:
-        ws.merge_cells(start_row=row, start_column=merged.min_col,
-                       end_row=row, end_column=new_end)
+    ws.merge_cells(start_row=row, start_column=merged.min_col,
+                   end_row=row, end_column=new_end)
 
     for c in range(new_end + 1, merged.max_col + 1):
         ws.cell(row=row, column=c).value = None
