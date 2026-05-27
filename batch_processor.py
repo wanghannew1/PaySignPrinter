@@ -94,32 +94,40 @@ def _estimate_text_span(text, col_width):
     return width / col_width
 
 
-def calculate_target_col(ws, row, col):
+def _split_merged_for_text(ws, row, col):
     from openpyxl.utils import get_column_letter
 
-    cell = ws.cell(row=row, column=col)
-    text = str(cell.value) if cell.value else ""
+    merged = _is_cell_in_merged_range(ws, row, col)
+    if not merged:
+        return col + 2
+
+    text = str(ws.cell(row=row, column=col).value) if ws.cell(row=row, column=col).value else ""
 
     def get_width(c):
         letter = get_column_letter(c)
         dim = ws.column_dimensions.get(letter)
         return dim.width if dim and dim.width else 8.43
 
-    merged = _is_cell_in_merged_range(ws, row, col)
-    if merged:
-        merged_width = sum(get_width(c) for c in range(merged.min_col, merged.max_col + 1))
-        span = _estimate_text_span(text, merged_width)
-        target = merged.max_col + max(2, int(span) + 1)
-    else:
-        col_width = get_width(col)
-        span = _estimate_text_span(text, col_width)
-        alignment = cell.alignment.horizontal
-        if alignment in ('right', 'center'):
-            target = col + max(3, int(span) + 2)
-        else:
-            target = col + max(2, int(span) + 1)
+    total_cols = merged.max_col - merged.min_col + 1
+    total_width = sum(get_width(c) for c in range(merged.min_col, merged.max_col + 1))
+    text_span = _estimate_text_span(text, total_width)
+    needed_cols = min(max(1, int(text_span) + 1), total_cols)
 
-    return min(target, ws.max_column + 1)
+    if needed_cols >= total_cols:
+        return merged.max_col + 1
+
+    merged_str = str(merged)
+    ws.unmerge_cells(merged_str)
+
+    new_end = merged.min_col + needed_cols - 1
+    if new_end > merged.min_col:
+        ws.merge_cells(start_row=row, start_column=merged.min_col,
+                       end_row=row, end_column=new_end)
+
+    for c in range(new_end + 1, merged.max_col + 1):
+        ws.cell(row=row, column=c).value = None
+
+    return new_end + 1
 
 
 def find_all_signature_positions(ws) -> Dict[str, Tuple[int, int]]:
@@ -175,7 +183,7 @@ def _insert_signature_to_excel_openpyxl(
                 continue
 
             row, col = positions[role]
-            target_col = calculate_target_col(ws, row, col)
+            target_col = _split_merged_for_text(ws, row, col)
 
             img = XLImage(str(sig_path))
             img.width = 120
