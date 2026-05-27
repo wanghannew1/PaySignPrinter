@@ -140,97 +140,63 @@ def _insert_signature_to_excel_openpyxl(
         return False, []
 
 
-def _insert_signature_to_excel_windows(
-    excel_path: Path,
-    approvers: List[Dict],
-    signatures_dir: Path,
-    output_path: Path,
-) -> Tuple[bool, List[str]]:
+def _convert_xls_to_xlsx_windows(xls_path: Path) -> Optional[Path]:
     try:
+        import pythoncom
         import win32com.client
         from win32com.client import constants
     except ImportError:
-        print("Windows签名插入需要 pywin32: pip install pywin32")
-        return False, []
+        print("转换xls需要 pywin32: pip install pywin32")
+        return None
 
+    pythoncom.CoInitialize()
     excel = None
     wb = None
-    inserted_roles = []
 
     try:
+        xlsx_path = xls_path.with_suffix(".xlsx")
         excel = win32com.client.Dispatch("Excel.Application")
         excel.Visible = False
         excel.DisplayAlerts = False
 
-        wb = excel.Workbooks.Open(str(excel_path.resolve()))
-        ws = wb.ActiveSheet
+        wb = excel.Workbooks.Open(str(xls_path.resolve()))
+        wb.SaveAs(str(xlsx_path.resolve()), FileFormat=constants.xlOpenXMLWorkbook)
+        wb.Close(SaveChanges=False)
+        excel.Quit()
 
-        keywords = ["总经理签字", "部长签字", "财务审核", "业务审核"]
-        positions = {}
-        used = ws.UsedRange
-        for row in range(1, used.Rows.Count + 1):
-            for col in range(1, used.Columns.Count + 1):
-                val = ws.Cells(row, col).Value
-                if val:
-                    text = str(val).strip()
-                    for kw in keywords:
-                        if kw in text and kw not in positions:
-                            positions[kw] = (row, col)
-
-        if not positions:
-            return False, []
-
-        for approver in approvers:
-            role = approver.get("role")
-            user_id = approver.get("userId")
-            if not role or not user_id:
-                continue
-            if role not in positions:
-                continue
-
-            sig_path = find_signature_image(user_id, signatures_dir)
-            if not sig_path:
-                continue
-
-            row, col = positions[role]
-            target_col = col + 2
-
-            cell = ws.Cells(row, target_col)
-            left = cell.Left
-            top = cell.Top
-
-            ws.Shapes.AddPicture(
-                str(sig_path.resolve()),
-                constants.msoFalse,
-                constants.msoTrue,
-                left,
-                top,
-                120,
-                60,
-            )
-            inserted_roles.append(role)
-
-        output_path = output_path.resolve()
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        ext = output_path.suffix.lower()
-        if ext == ".xls":
-            wb.SaveAs(str(output_path), FileFormat=constants.xlExcel8)
-        elif ext == ".xlsx":
-            wb.SaveAs(str(output_path), FileFormat=constants.xlOpenXMLWorkbook)
-        else:
-            wb.SaveAs(str(output_path))
-
-        return len(inserted_roles) > 0, inserted_roles
+        return xlsx_path
     except Exception as e:
-        print(f"Windows签名插入失败: {e}")
-        return False, []
+        print(f"xls转换失败: {e}")
+        return None
     finally:
         try:
             if wb:
                 wb.Close(SaveChanges=False)
             if excel:
                 excel.Quit()
+        except Exception:
+            pass
+        pythoncom.CoUninitialize()
+
+
+def _insert_signature_to_excel_windows(
+    excel_path: Path,
+    approvers: List[Dict],
+    signatures_dir: Path,
+    output_path: Path,
+) -> Tuple[bool, List[str]]:
+    xlsx_path = _convert_xls_to_xlsx_windows(excel_path)
+    if xlsx_path is None:
+        return False, []
+
+    try:
+        result = _insert_signature_to_excel_openpyxl(
+            xlsx_path, approvers, signatures_dir, output_path
+        )
+        return result
+    finally:
+        try:
+            xlsx_path.unlink()
         except Exception:
             pass
 
