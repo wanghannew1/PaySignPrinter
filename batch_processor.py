@@ -82,22 +82,16 @@ def find_signature_image(user_id: str, signatures_dir: Path) -> Optional[Path]:
 def find_all_signature_positions(ws) -> Dict[str, Tuple[int, int]]:
     """Find all signature positions in the worksheet."""
     positions = {}
-    keyword_aliases = {
-        "总经理签字": "总经理签字",
-        "部长签字": "部长签字",
-        "分管副总签字": "部长签字",
-        "财务审核": "财务审核",
-        "业务审核": "业务审核",
-    }
+    keywords = ["总经理签字", "部长签字", "财务审核", "业务审核"]
 
     for row in range(1, ws.max_row + 1):
         for col in range(1, ws.max_column + 1):
             cell = ws.cell(row=row, column=col)
             if cell.value:
                 value = str(cell.value).strip()
-                for keyword, alias in keyword_aliases.items():
-                    if keyword in value and alias not in positions:
-                        positions[alias] = (row, col)
+                for keyword in keywords:
+                    if keyword in value and keyword not in positions:
+                        positions[keyword] = (row, col)
     return positions
 
 
