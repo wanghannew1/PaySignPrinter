@@ -241,7 +241,8 @@ def insert_signature_to_excel(
     signatures_dir: Path,
     output_path: Path,
 ) -> Tuple[bool, List[str]]:
-    if platform.system() == "Windows":
+    ext = excel_path.suffix.lower()
+    if platform.system() == "Windows" and ext == ".xls":
         return _insert_signature_to_excel_windows(
             excel_path, approvers, signatures_dir, output_path
         )
