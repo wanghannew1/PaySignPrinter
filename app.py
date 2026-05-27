@@ -476,18 +476,26 @@ else:
             with cols[0]:
                 st.write(f"{idx+1}. **{file_name}**")
             with cols[1]:
-                try:
-                    download_url = cache_manager.get_cached_download_url(instance_id, file_id)
-                    if download_url is None:
-                        download_url, _ = get_download_url(instance_id, file_id, token)
-                        cache_manager.cache_download_url(instance_id, file_id, download_url)
-                    file_bytes = download_file_bytes(download_url)
-                    st.download_button(
-                        label="📥 下载",
-                        data=file_bytes,
-                        file_name=file_name,
-                        mime="application/octet-stream",
-                        key=f"dl_{idx}",
-                    )
-                except Exception as e:
-                    st.error(f"下载失败: {e}")
+                dl_key = f"dl_{instance_id}_{file_id}"
+                if dl_key not in st.session_state:
+                    if st.button("📥 下载", key=f"btn_dl_{idx}"):
+                        st.session_state[dl_key] = True
+                        st.rerun()
+                else:
+                    try:
+                        download_url = cache_manager.get_cached_download_url(instance_id, file_id)
+                        if download_url is None:
+                            download_url, _ = get_download_url(instance_id, file_id, token)
+                            cache_manager.cache_download_url(instance_id, file_id, download_url)
+                        file_bytes = download_file_bytes(download_url)
+                        st.download_button(
+                            label="📥 点击下载",
+                            data=file_bytes,
+                            file_name=file_name,
+                            mime="application/octet-stream",
+                            key=f"dl_btn_{idx}",
+                        )
+                    except Exception as e:
+                        st.error(f"下载失败: {e}")
+                    if dl_key in st.session_state:
+                        del st.session_state[dl_key]
