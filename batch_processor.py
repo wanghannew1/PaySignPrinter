@@ -79,6 +79,49 @@ def find_signature_image(user_id: str, signatures_dir: Path) -> Optional[Path]:
     return None
 
 
+def _is_cell_in_merged_range(ws, row, col):
+    for merged_range in ws.merged_cells.ranges:
+        if (merged_range.min_row <= row <= merged_range.max_row and
+                merged_range.min_col <= col <= merged_range.max_col):
+            return merged_range
+    return None
+
+
+def _estimate_text_span(text, col_width):
+    if not col_width or col_width == 0:
+        col_width = 8.43
+    width = sum(2 if '\u4e00' <= c <= '\u9fff' else 1 for c in str(text))
+    return width / col_width
+
+
+def calculate_target_col(ws, row, col):
+    from openpyxl.utils import get_column_letter
+
+    cell = ws.cell(row=row, column=col)
+    text = str(cell.value) if cell.value else ""
+
+    def get_width(c):
+        letter = get_column_letter(c)
+        dim = ws.column_dimensions.get(letter)
+        return dim.width if dim and dim.width else 8.43
+
+    merged = _is_cell_in_merged_range(ws, row, col)
+    if merged:
+        merged_width = sum(get_width(c) for c in range(merged.min_col, merged.max_col + 1))
+        span = _estimate_text_span(text, merged_width)
+        target = merged.max_col + max(2, int(span) + 1)
+    else:
+        col_width = get_width(col)
+        span = _estimate_text_span(text, col_width)
+        alignment = cell.alignment.horizontal
+        if alignment in ('right', 'center'):
+            target = col + max(3, int(span) + 2)
+        else:
+            target = col + max(2, int(span) + 1)
+
+    return min(target, ws.max_column + 1)
+
+
 def find_all_signature_positions(ws) -> Dict[str, Tuple[int, int]]:
     """Find all signature positions in the worksheet."""
     positions = {}
@@ -132,7 +175,7 @@ def _insert_signature_to_excel_openpyxl(
                 continue
 
             row, col = positions[role]
-            target_col = col + 2
+            target_col = calculate_target_col(ws, row, col)
 
             img = XLImage(str(sig_path))
             img.width = 120
