@@ -35,6 +35,28 @@ xls转换失败: (-2147221005, '无效的类字符串', None, None)
 
 ---
 
+## Q2b: .xls 文件签名插入失败，报"xlOpenXMLWorkbook"
+
+**现象：**
+```
+xls转换失败: xlOpenXMLWorkbook
+```
+
+**原因：** WPS 的 COM 接口不支持 `constants.xlOpenXMLWorkbook` 常量名。WPS 和 Microsoft Excel 的 COM 常量不完全兼容。
+
+**解决：** 已修复。代码使用数值 `51` 代替常量名：
+```python
+# 修改前（WPS报错）
+wb.SaveAs(..., FileFormat=constants.xlOpenXMLWorkbook)
+
+# 修改后（WPS兼容）
+wb.SaveAs(..., FileFormat=51)  # 51 = xlsx格式码
+```
+
+如果 `51` 也失败，会自动 fallback 到不带 FileFormat 参数的保存方式。
+
+---
+
 ## Q3: 提示"未找到可签名的审批角色"
 
 **现象：**
@@ -93,6 +115,43 @@ xls转换失败: (-2147221005, '无效的类字符串', None, None)
 **省流技巧：**
 - 查询结果自动缓存，再次查询 0 API 调用
 - 下载 URL 15 分钟内可复用
+
+---
+
+## Q7: 签名位置找到了，但签名后文件里没有签名图片
+
+**现象：**
+日志显示：
+```
+[SIGN] Found positions: {'总经理签字': (18, 1), ...}
+[SIGN] Signature image not found for user 285843661939115798
+[SIGN] Saved to signed_xxx.xlsx, inserted: []
+```
+
+**原因：** `./signatures/` 目录中没有对应的签名图片文件。
+
+**解决：**
+1. 准备审批人的签名图片（PNG 格式，透明背景最佳）
+2. 将图片放入 `./signatures/` 目录
+3. 图片文件名必须是 `userId.png`，例如 `285843661939115798.png`
+
+**如何获取 userId：**
+- 在审批详情页查看审批人信息
+- 或者从钉钉通讯录导出获取
+
+---
+
+## Q8: 汇总表（xlsx）没有插入签名
+
+**现象：**
+```
+[SIGN] Found positions: {}
+[SIGN] No signature positions found in 汇总表.xlsx
+```
+
+**原因：** 汇总表通常没有"总经理签字"、"部长签字"等提示词，只有工资数据汇总，所以程序找不到签名位置。
+
+**解决：** 这是预期行为。汇总表不需要签名，只有各单位的明细表才需要。如果汇总表也需要签名，请在 Excel 中手动添加提示词单元格。
 
 ---
 
