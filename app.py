@@ -303,11 +303,13 @@ with st.sidebar:
         st.divider()
         st.header("📂 已下载文件")
         queue = st.session_state.print_queue
-        total_files = sum(len(files) for files in queue.values())
-        total_selected = sum(sum(1 for f in files if f["selected"]) for files in queue.values())
+        total_files = sum(len(b.get("files", [])) for b in queue.values())
+        total_selected = sum(sum(1 for f in b.get("files", []) if f["selected"]) for b in queue.values())
         st.write(f"共 {len(queue)} 个批次，{total_files} 个文件（{total_selected} 个待打印）")
 
-        for business_id, files in queue.items():
+        sorted_items = sorted(queue.items(), key=lambda x: x[1].get("batch_order", 1))
+        for business_id, batch_data in sorted_items:
+            files = batch_data.get("files", [])
             with st.expander(f"📋 {business_id} ({len(files)} 个文件)"):
                 for f in files:
                     st.write(f"  - {Path(f['path']).name}")
@@ -392,11 +394,26 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
         if "print_queue" not in st.session_state:
             st.session_state.print_queue = {}
 
+        max_batch_order = max(
+            (b.get("batch_order", 0) for b in st.session_state.print_queue.values()),
+            default=0,
+        )
+
         for business_id, files in all_signed_files_by_business.items():
-            st.session_state.print_queue[business_id] = [
-                {"path": f, "order": i + 1, "selected": True}
-                for i, f in enumerate(files)
-            ]
+            if business_id in st.session_state.print_queue:
+                existing = st.session_state.print_queue[business_id].get("files", [])
+                start_order = len(existing) + 1
+                for i, f in enumerate(files):
+                    existing.append({"path": f, "order": start_order + i, "selected": True})
+            else:
+                max_batch_order += 1
+                st.session_state.print_queue[business_id] = {
+                    "batch_order": max_batch_order,
+                    "files": [
+                        {"path": f, "order": i + 1, "selected": True}
+                        for i, f in enumerate(files)
+                    ],
+                }
 
         st.session_state.show_print_ui = True
 
@@ -411,18 +428,40 @@ if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_
 
     print_queue = st.session_state.print_queue
     all_files = []
-    for business_id, files in print_queue.items():
-        for f in files:
+    for business_id, batch_data in print_queue.items():
+        for f in batch_data.get("files", []):
             all_files.append({**f, "business_id": business_id})
 
     st.write(f"共 {len(all_files)} 个已签名文件可打印")
 
     with st.form("print_settings"):
-        st.write("调整序号和勾选后，点击'应用设置'确认：")
+        st.write("调整批次顺序和文件勾选后，点击'应用设置'确认：")
         new_queue = {}
         idx = 0
-        for business_id, files in print_queue.items():
-            st.write(f"📋 {business_id}")
+        sorted_batches = sorted(print_queue.items(), key=lambda x: x[1].get("batch_order", 1))
+        for business_id, batch_data in sorted_batches:
+            files = batch_data.get("files", [])
+            previous_all_selected = all(f["selected"] for f in files) if files else False
+
+            header_cols = st.columns([1, 2, 1, 1])
+            with header_cols[0]:
+                batch_order = st.number_input(
+                    f"批次_{business_id}",
+                    min_value=1,
+                    value=batch_data.get("batch_order", 1),
+                    label_visibility="collapsed",
+                )
+            with header_cols[1]:
+                st.write(f"📋 {business_id}")
+            with header_cols[2]:
+                select_all = st.checkbox(
+                    f"全选_{business_id}",
+                    value=previous_all_selected,
+                    label_visibility="collapsed",
+                )
+            with header_cols[3]:
+                st.write("全选")
+
             new_files = []
             for item in files:
                 file_path = Path(item["path"])
@@ -431,21 +470,26 @@ if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_
                     order = st.number_input(
                         f"序号_{idx}",
                         min_value=1,
-                        max_value=len(all_files),
                         value=item["order"],
                         label_visibility="collapsed",
                     )
                 with cols[1]:
+                    file_selected = item["selected"]
+                    if select_all != previous_all_selected:
+                        file_selected = select_all
                     selected = st.checkbox(
                         f"打印_{idx}",
-                        value=item["selected"],
+                        value=file_selected,
                         label_visibility="collapsed",
                     )
                 with cols[2]:
                     st.write(f"{Path(file_path).name}")
                 new_files.append({"path": item["path"], "order": order, "selected": selected})
                 idx += 1
-            new_queue[business_id] = new_files
+            new_queue[business_id] = {
+                "batch_order": batch_order,
+                "files": new_files,
+            }
 
         apply_clicked = st.form_submit_button("应用设置", use_container_width=True)
 
@@ -454,22 +498,21 @@ if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_
         st.rerun()
 
     all_selected = []
-    for business_id, files in print_queue.items():
-        for f in files:
+    sorted_batches = sorted(print_queue.items(), key=lambda x: x[1].get("batch_order", 1))
+    for business_id, batch_data in sorted_batches:
+        for f in sorted(batch_data.get("files", []), key=lambda x: x["order"]):
             if f["selected"]:
                 all_selected.append(f)
 
-    sorted_queue = sorted(all_selected, key=lambda x: x["order"])
-
-    if sorted_queue:
-        st.write(f"将按顺序打印 {len(sorted_queue)} 个文件：")
-        for i, item in enumerate(sorted_queue):
+    if all_selected:
+        st.write(f"将按顺序打印 {len(all_selected)} 个文件：")
+        for i, item in enumerate(all_selected):
             st.write(f"  {i+1}. {Path(item['path']).name}")
 
         if st.button("🖨️ 开始打印", type="primary", use_container_width=True):
             print_progress = st.progress(0)
             printed_count = 0
-            for i, item in enumerate(sorted_queue):
+            for i, item in enumerate(all_selected):
                 file_path = Path(item["path"])
                 st.write(f"⏳ 正在打印 {file_path.name}...")
                 if print_file(file_path):
@@ -477,9 +520,9 @@ if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_
                     printed_count += 1
                 else:
                     st.error(f"❌ 打印失败: {file_path.name}")
-                print_progress.progress((i + 1) / len(sorted_queue))
+                print_progress.progress((i + 1) / len(all_selected))
             print_progress.empty()
-            st.success(f"🎉 打印完成！成功 {printed_count}/{len(sorted_queue)} 个")
+            st.success(f"🎉 打印完成！成功 {printed_count}/{len(all_selected)} 个")
     else:
         st.info("未选择任何文件打印")
 
