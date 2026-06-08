@@ -17,25 +17,31 @@ from openpyxl.drawing.image import Image as XLImage
 import cache_manager
 
 
-# Mapping from approval role showName to Excel signature position keyword
-# Supports both old verbose names (e.g., "财务负责人审批") and new short names (e.g., "财务审核")
-ROLE_TO_SIGNATURE_KEYWORD = {
-    "五险一金": "业务审核",
-    "业务审核": "业务审核",
-    "部门负责人": "部长签字",
-    "部长签字": "部长签字",
-    "分管副总签字": "部长签字",
-    "财务": "财务审核",
-    "财务审核": "财务审核",
-    "总经理": "总经理签字",
-    "总经理签字": "总经理签字",
-}
+def _load_role_mapping():
+    mapping_path = Path(__file__).parent / "role_mapping.json"
+    if mapping_path.exists():
+        try:
+            with open(mapping_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"加载角色映射失败: {e}，使用内置默认值")
+    return {
+        "五险一金": "业务审核",
+        "业务审核": "业务审核",
+        "部门负责人": "部长签字",
+        "部长签字": "部长签字",
+        "分管副总签字": "部长签字",
+        "财务": "财务审核",
+        "财务审核": "财务审核",
+        "总经理": "总经理签字",
+        "总经理签字": "总经理签字",
+    }
 
 
 def get_approver_role(show_name: str) -> Optional[str]:
-    """Map approver showName to signature keyword."""
     show_name_lower = show_name.lower()
-    for role_keyword, sig_keyword in ROLE_TO_SIGNATURE_KEYWORD.items():
+    mapping = _load_role_mapping()
+    for role_keyword, sig_keyword in mapping.items():
         if role_keyword in show_name_lower:
             return sig_keyword
     return None
