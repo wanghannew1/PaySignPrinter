@@ -265,7 +265,7 @@ with st.sidebar:
 
             cols = st.columns([0.5, 4])
             with cols[0]:
-                is_checked = st.checkbox("", key=f"chk_{idx}", label_visibility="collapsed")
+                is_checked = st.checkbox("选择", key=f"chk_{idx}", label_visibility="collapsed")
             with cols[1]:
                 if is_selected:
                     button_label = f"🔍 {business_id}"
