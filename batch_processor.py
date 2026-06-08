@@ -364,15 +364,10 @@ def process_single_approval(
     }
 
     try:
-        print(f"[BATCH] Getting details for {instance_id[:20]}...")
         details = cache_manager.get_cached_instance_details(instance_id)
         if details is None:
-            print(f"[BATCH] Cache miss, calling API...")
             details = dingtalk_api_module.get_instance_details(instance_id, token)
             cache_manager.cache_instance_details(instance_id, details)
-            print(f"[BATCH] Got details from API")
-        else:
-            print(f"[BATCH] Cache hit")
     except Exception as e:
         result["message"] = f"获取详情失败: {e}"
         return result
@@ -407,21 +402,13 @@ def process_single_approval(
         file_type = att.get("fileType", "")
 
         try:
-            print(f"[BATCH] Getting download URL for {file_name}...")
             download_url = cache_manager.get_cached_download_url(instance_id, file_id)
             if download_url is None:
-                print(f"[BATCH] URL cache miss, calling API...")
                 download_url, needs_rename = dingtalk_api_module.get_download_url(
                     instance_id, file_id, token
                 )
                 cache_manager.cache_download_url(instance_id, file_id, download_url)
-                print(f"[BATCH] Got download URL")
-            else:
-                print(f"[BATCH] URL cache hit")
-
-            print(f"[BATCH] Downloading {file_name}...")
             file_bytes = dingtalk_api_module.download_file_bytes(download_url)
-            print(f"[BATCH] Downloaded {len(file_bytes)} bytes")
 
             # Save to instance dir directly (no nested subdir)
             safe_name = sanitize_dir_name(file_name)
@@ -440,13 +427,11 @@ def process_single_approval(
 
             # If Excel, insert signatures
             if file_type in ("xlsx", "xls") or file_path.suffix in (".xlsx", ".xls"):
-                print(f"[BATCH] Inserting signatures into {file_name}...")
                 signed_name = f"signed_{file_path.stem}.xlsx"
                 signed_path = instance_dir / signed_name
                 success, inserted, actual_signed_path = insert_signature_to_excel(
                     file_path, approvers, signatures_dir, signed_path
                 )
-                print(f"[BATCH] Signature insertion result: success={success}, inserted={inserted}")
                 if success:
                     result["signed"].extend(inserted)
                     # Print disabled - uncomment when needed
@@ -463,8 +448,7 @@ def process_single_approval(
                 # if print_file(file_path):
                 #     result["printed"].append(file_name)
 
-        except Exception as e:
-            print(f"[BATCH] Error processing {file_name}: {e}")
+        except Exception:
             continue
 
     result["success"] = True
