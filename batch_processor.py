@@ -286,14 +286,26 @@ def _convert_xls_to_xlsx_windows(xls_path: Path) -> Optional[Path]:
             excel.DisplayAlerts = False
 
             wb = excel.Workbooks.Open(str(xls_path.resolve()))
-            wb.SaveAs(str(xlsx_path.resolve()), FileFormat=constants.xlOpenXMLWorkbook)
+            # Use numeric format code 51 for xlsx (Excel 2007+ format)
+            # WPS may not recognize constants.xlOpenXMLWorkbook
+            wb.SaveAs(str(xlsx_path.resolve()), FileFormat=51)
             wb.Close(SaveChanges=False)
             excel.Quit()
 
             return xlsx_path
         except Exception as e:
-            print(f"Excel COM转换失败: {e}，尝试LibreOffice...")
-            return _convert_xls_to_xlsx_libreoffice(xls_path)
+            print(f"WPS/Excel COM转换失败: {e}，尝试不带FileFormat...")
+            try:
+                # Fallback: save without explicit format, let WPS infer from extension
+                xlsx_path = xls_path.with_suffix(".xlsx")
+                wb = excel.Workbooks.Open(str(xls_path.resolve()))
+                wb.SaveAs(str(xlsx_path.resolve()))
+                wb.Close(SaveChanges=False)
+                excel.Quit()
+                return xlsx_path
+            except Exception as e2:
+                print(f"不带FileFormat也失败: {e2}，尝试LibreOffice...")
+                return _convert_xls_to_xlsx_libreoffice(xls_path)
         finally:
             try:
                 if wb:
