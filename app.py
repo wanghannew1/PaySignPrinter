@@ -10,6 +10,7 @@ from dingtalk_api import (
     get_instance_details, extract_attachments, get_download_url, download_file, download_file_bytes
 )
 import cache_manager
+from logger_config import logger
 
 
 def load_user_mapping():
@@ -320,6 +321,8 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
         progress = (i + 1) / len(instances)
         progress_bar.progress(min(progress, 0.99))
 
+        logger.info(f"[UI] Processing instance {i+1}/{len(instances)}: {inst_id[:20]}...")
+        
         result = process_single_approval(
             inst_id,
             st.session_state.access_token,
@@ -328,17 +331,19 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
             dingtalk_api,
         )
 
-        with results_container:
-            display_id = result.get("business_id", inst_id[:20])
-            if result["skipped"]:
-                st.warning(f"⏭️ {display_id}: {result['message']}")
-                skip_count += 1
-            elif result["success"]:
-                st.success(f"✅ {display_id}: {result['message']}")
-                success_count += 1
-            else:
-                st.error(f"❌ {display_id}: {result['message']}")
-                fail_count += 1
+        display_id = result.get("business_id", inst_id[:20])
+        if result["skipped"]:
+            logger.info(f"[UI] Skipped {display_id}: {result['message']}")
+            st.warning(f"⏭️ {display_id}: {result['message']}")
+            skip_count += 1
+        elif result["success"]:
+            logger.info(f"[UI] Success {display_id}: {result['message']}")
+            st.success(f"✅ {display_id}: {result['message']}")
+            success_count += 1
+        else:
+            logger.error(f"[UI] Failed {display_id}: {result['message']}")
+            st.error(f"❌ {display_id}: {result['message']}")
+            fail_count += 1
 
     progress_bar.empty()
     st.divider()

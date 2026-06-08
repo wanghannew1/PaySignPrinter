@@ -15,6 +15,7 @@ from openpyxl import load_workbook
 from openpyxl.drawing.image import Image as XLImage
 
 import cache_manager
+from logger_config import logger
 
 
 def _load_role_mapping():
@@ -364,11 +365,17 @@ def process_single_approval(
     }
 
     try:
+        logger.info(f"[BATCH] Getting details for {instance_id[:20]}...")
         details = cache_manager.get_cached_instance_details(instance_id)
         if details is None:
+            logger.info(f"[BATCH] Cache miss, calling get_instance_details API...")
             details = dingtalk_api_module.get_instance_details(instance_id, token)
             cache_manager.cache_instance_details(instance_id, details)
+            logger.info(f"[BATCH] Got details from API")
+        else:
+            logger.info(f"[BATCH] Cache hit for details")
     except Exception as e:
+        logger.error(f"[BATCH] Failed to get details: {e}")
         result["message"] = f"获取详情失败: {e}"
         return result
 
@@ -402,13 +409,21 @@ def process_single_approval(
         file_type = att.get("fileType", "")
 
         try:
+            logger.info(f"[BATCH] Processing attachment: {file_name}")
             download_url = cache_manager.get_cached_download_url(instance_id, file_id)
             if download_url is None:
+                logger.info(f"[BATCH] Download URL cache miss, calling API...")
                 download_url, needs_rename = dingtalk_api_module.get_download_url(
                     instance_id, file_id, token
                 )
                 cache_manager.cache_download_url(instance_id, file_id, download_url)
+                logger.info(f"[BATCH] Got download URL")
+            else:
+                logger.info(f"[BATCH] Download URL cache hit")
+            
+            logger.info(f"[BATCH] Downloading file bytes...")
             file_bytes = dingtalk_api_module.download_file_bytes(download_url)
+            logger.info(f"[BATCH] Downloaded {len(file_bytes)} bytes")
 
             # Save to instance dir directly (no nested subdir)
             safe_name = sanitize_dir_name(file_name)
@@ -427,28 +442,31 @@ def process_single_approval(
 
             # If Excel, insert signatures
             if file_type in ("xlsx", "xls") or file_path.suffix in (".xlsx", ".xls"):
+                logger.info(f"[BATCH] Inserting signatures into {file_name}...")
                 signed_name = f"signed_{file_path.stem}.xlsx"
                 signed_path = instance_dir / signed_name
                 success, inserted, actual_signed_path = insert_signature_to_excel(
                     file_path, approvers, signatures_dir, signed_path
                 )
                 if success:
+                    logger.info(f"[BATCH] Signature insertion success: {inserted}")
                     result["signed"].extend(inserted)
                     # Print disabled - uncomment when needed
                     # if print_file(actual_signed_path):
                     #     result["printed"].append(file_name)
                 else:
-                    pass
+                    logger.warning(f"[BATCH] Signature insertion failed for {file_name}")
                     # Print disabled - uncomment when needed
                     # if print_file(file_path):
                     #     result["printed"].append(file_name)
             else:
-                pass
+                logger.info(f"[BATCH] Non-Excel file, skipping signature: {file_name}")
                 # Print disabled - uncomment when needed
                 # if print_file(file_path):
                 #     result["printed"].append(file_name)
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"[BATCH] Error processing {file_name}: {e}")
             continue
 
     result["success"] = True
