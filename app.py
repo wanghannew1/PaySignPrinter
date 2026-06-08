@@ -378,8 +378,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     with cols[2]:
         st.metric("失败", fail_count)
 
-    # Store signed files for printing (persist across reruns via print_queue)
-    if all_signed_files and "print_queue" not in st.session_state:
+    if all_signed_files:
         st.session_state.print_queue = [
             {"path": f, "order": i + 1, "selected": True}
             for i, f in enumerate(all_signed_files)
