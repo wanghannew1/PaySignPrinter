@@ -93,6 +93,7 @@ DINGTALK_PROCESS_CODE=PROC-D868A57B-7939-4857-AAAB-0C8437487F7E
    - `oa_approval` - OA审批权限
    - `workflow` - 工作流权限
    - `Workflow.Instance.Read` - 工作流实例读权限（获取审批详情）
+   - `Workflow.Instance.Write` - 工作流实例写权限（下载审批附件）
    - `Storage.DownloadInfo.Read` - 企业存储文件下载信息读权限（下载审批附件）
 
 ## 🚀 启动应用

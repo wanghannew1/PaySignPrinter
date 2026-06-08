@@ -158,6 +158,7 @@ x-acs-dingtalk-access-token: xxx
 
 **权限要求：**
 - `Storage.DownloadInfo.Read` — 企业存储文件下载信息读权限
+- `Workflow.Instance.Write` — 工作流实例写权限（必须）
 
 ---
 
@@ -235,10 +236,11 @@ GET https://xxx/download  (15分钟内有效)
 | `oa_approval` | (2)(3) | OA审批权限 |
 | `workflow` | (2) | 工作流权限 |
 | `Workflow.Instance.Read` | (3) | 工作流实例读权限 |
+| `Workflow.Instance.Write` | (4) | 工作流实例写权限（下载附件必需） |
 | `Storage.DownloadInfo.Read` | (4) | 企业存储文件下载信息读权限 |
 
 **常见问题：**
-- 403 Forbidden → 缺少 `Storage.DownloadInfo.Read` 权限
+- 403 Forbidden → 缺少 `Storage.DownloadInfo.Read` 或 `Workflow.Instance.Write` 权限
 - 401 Unauthorized → Token 过期或无效
 - 400 Bad Request → 请求参数错误（如日期范围超过 120 天）
 
