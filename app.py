@@ -11,6 +11,7 @@ from dingtalk_api import (
 )
 import cache_manager
 from logger_config import logger
+from batch_processor import print_file
 
 
 def load_user_mapping():
@@ -375,29 +376,35 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
         
         print_queue = st.session_state.print_queue
         
-        st.write("调整序号可改变打印顺序，取消勾选则跳过打印：")
-        for i, item in enumerate(print_queue):
-            file_path = Path(item["path"])
-            cols = st.columns([0.5, 0.5, 3])
-            with cols[0]:
-                new_order = st.number_input(
-                    "序号",
-                    min_value=1,
-                    max_value=len(print_queue),
-                    value=item["order"],
-                    key=f"order_{i}",
-                    label_visibility="collapsed",
-                )
-                print_queue[i]["order"] = new_order
-            with cols[1]:
-                print_queue[i]["selected"] = st.checkbox(
-                    "打印",
-                    value=item["selected"],
-                    key=f"select_{i}",
-                    label_visibility="collapsed",
-                )
-            with cols[2]:
-                st.write(f"{i+1}. {file_path.name}")
+        with st.form("print_settings"):
+            st.write("调整序号和勾选后，点击'应用设置'确认：")
+            new_queue = []
+            for i, item in enumerate(print_queue):
+                file_path = Path(item["path"])
+                cols = st.columns([0.5, 0.5, 3])
+                with cols[0]:
+                    order = st.number_input(
+                        f"序号_{i}",
+                        min_value=1,
+                        max_value=len(print_queue),
+                        value=item["order"],
+                        label_visibility="collapsed",
+                    )
+                with cols[1]:
+                    selected = st.checkbox(
+                        f"打印_{i}",
+                        value=item["selected"],
+                        label_visibility="collapsed",
+                    )
+                with cols[2]:
+                    st.write(f"{i+1}. {file_path.name}")
+                new_queue.append({"path": item["path"], "order": order, "selected": selected})
+            
+            apply_clicked = st.form_submit_button("应用设置", use_container_width=True)
+        
+        if apply_clicked:
+            st.session_state.print_queue = new_queue
+            st.rerun()
         
         sorted_queue = sorted(
             [q for q in print_queue if q["selected"]],
