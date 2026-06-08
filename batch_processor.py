@@ -458,7 +458,7 @@ def process_single_approval(
         "message": "",
         "downloaded": [],
         "signed": [],
-        "printed": [],
+        "signed_files": [],
         "skipped": False,
         "title": "",
     }
@@ -550,12 +550,7 @@ def process_single_approval(
                 if success:
                     logger.info(f"[BATCH] Signature insertion success: {inserted}")
                     result["signed"].extend(inserted)
-                    logger.info(f"[BATCH] Printing signed file: {actual_signed_path.name}")
-                    if print_file(actual_signed_path):
-                        result["printed"].append(file_name)
-                        logger.info(f"[BATCH] Print success: {file_name}")
-                    else:
-                        logger.warning(f"[BATCH] Print failed: {file_name}")
+                    result["signed_files"].append(str(actual_signed_path))
                 else:
                     logger.warning(f"[BATCH] Signature insertion failed for {file_name}")
             else:
@@ -568,7 +563,6 @@ def process_single_approval(
     result["success"] = True
     result["message"] = (
         f"下载 {len(result['downloaded'])} 个, "
-        f"签名 {len(result['signed'])} 处, "
-        f"打印 {len(result['printed'])} 个"
+        f"签名 {len(result['signed'])} 处"
     )
     return result

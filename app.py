@@ -279,6 +279,10 @@ with st.sidebar:
                     type=btn_type,
                     use_container_width=True,
                 ):
+                    # 清除批量处理状态，避免rerun时重复执行
+                    for key in ["batch_action", "batch_instances"]:
+                        if key in st.session_state:
+                            del st.session_state[key]
                     st.session_state.selected_instance_id = instance_id
                     st.rerun()
 
@@ -316,7 +320,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     success_count = 0
     skip_count = 0
     fail_count = 0
-    print_count = 0
+    all_signed_files = []
 
     for i, inst_id in enumerate(instances):
         progress = (i + 1) / len(instances)
@@ -341,7 +345,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
             logger.info(f"[UI] Success {display_id}: {result['message']}")
             st.success(f"✅ {display_id}: {result['message']}")
             success_count += 1
-            print_count += len(result.get("printed", []))
+            all_signed_files.extend(result.get("signed_files", []))
         else:
             logger.error(f"[UI] Failed {display_id}: {result['message']}")
             st.error(f"❌ {display_id}: {result['message']}")
@@ -350,19 +354,82 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     progress_bar.empty()
     st.divider()
     st.subheader("📊 处理结果")
-    cols = st.columns(4)
+    cols = st.columns(3)
     with cols[0]:
         st.metric("成功", success_count)
     with cols[1]:
         st.metric("跳过", skip_count)
     with cols[2]:
         st.metric("失败", fail_count)
-    with cols[3]:
-        st.metric("🖨️ 打印", print_count)
+
+    if all_signed_files:
+        st.divider()
+        st.subheader("🖨️ 打印设置")
+        st.write(f"共有 {len(all_signed_files)} 个已签名文件可打印")
+        
+        if "print_queue" not in st.session_state:
+            st.session_state.print_queue = [
+                {"path": f, "order": i + 1, "selected": True}
+                for i, f in enumerate(all_signed_files)
+            ]
+        
+        print_queue = st.session_state.print_queue
+        
+        st.write("调整序号可改变打印顺序，取消勾选则跳过打印：")
+        for i, item in enumerate(print_queue):
+            file_path = Path(item["path"])
+            cols = st.columns([0.5, 0.5, 3])
+            with cols[0]:
+                new_order = st.number_input(
+                    "序号",
+                    min_value=1,
+                    max_value=len(print_queue),
+                    value=item["order"],
+                    key=f"order_{i}",
+                    label_visibility="collapsed",
+                )
+                print_queue[i]["order"] = new_order
+            with cols[1]:
+                print_queue[i]["selected"] = st.checkbox(
+                    "打印",
+                    value=item["selected"],
+                    key=f"select_{i}",
+                    label_visibility="collapsed",
+                )
+            with cols[2]:
+                st.write(f"{i+1}. {file_path.name}")
+        
+        sorted_queue = sorted(
+            [q for q in print_queue if q["selected"]],
+            key=lambda x: x["order"]
+        )
+        
+        if sorted_queue:
+            st.write(f"将按顺序打印 {len(sorted_queue)} 个文件：")
+            for i, item in enumerate(sorted_queue):
+                st.write(f"  {i+1}. {Path(item['path']).name}")
+            
+            if st.button("🖨️ 开始打印", type="primary", use_container_width=True):
+                print_progress = st.progress(0)
+                printed_count = 0
+                for i, item in enumerate(sorted_queue):
+                    file_path = Path(item["path"])
+                    st.write(f"⏳ 正在打印 {file_path.name}...")
+                    if print_file(file_path):
+                        st.write(f"✅ 打印成功: {file_path.name}")
+                        printed_count += 1
+                    else:
+                        st.error(f"❌ 打印失败: {file_path.name}")
+                    print_progress.progress((i + 1) / len(sorted_queue))
+                print_progress.empty()
+                st.success(f"🎉 打印完成！成功 {printed_count}/{len(sorted_queue)} 个")
+        else:
+            st.info("未选择任何文件打印")
 
     if st.button("返回"):
-        del st.session_state.batch_action
-        del st.session_state.batch_instances
+        for key in ["batch_action", "batch_instances", "print_queue"]:
+            if key in st.session_state:
+                del st.session_state[key]
         st.rerun()
 
 elif "selected_instance_id" not in st.session_state:
