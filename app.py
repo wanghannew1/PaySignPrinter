@@ -299,6 +299,21 @@ with st.sidebar:
                 st.session_state.batch_instances = selected_for_batch
                 st.rerun()
 
+    if "print_queue" in st.session_state and st.session_state.print_queue:
+        st.divider()
+        st.header("📂 已下载文件")
+        queue = st.session_state.print_queue
+        selected_count = sum(1 for q in queue if q["selected"])
+        st.write(f"共 {len(queue)} 个签名文件（{selected_count} 个待打印）")
+        
+        if st.button("🖨️ 继续打印", type="primary", use_container_width=True):
+            st.session_state.show_print_ui = True
+            st.rerun()
+        
+        if st.button("🗑️ 清除记录", use_container_width=True):
+            del st.session_state.print_queue
+            st.rerun()
+
 # --- Batch Processing ---
 if "batch_action" in st.session_state and st.session_state.batch_action:
     action = st.session_state.batch_action
@@ -369,13 +384,14 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
             {"path": f, "order": i + 1, "selected": True}
             for i, f in enumerate(all_signed_files)
         ]
+        st.session_state.show_print_ui = True
 
     # Clear batch_action to prevent re-processing on rerun
     if "batch_action" in st.session_state:
         del st.session_state.batch_action
 
 # --- Print Settings (shown after batch processing or on rerun) ---
-if "print_queue" in st.session_state and st.session_state.print_queue:
+if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_state and st.session_state.print_queue:
     st.divider()
     st.subheader("🖨️ 打印设置")
     
@@ -440,12 +456,13 @@ if "print_queue" in st.session_state and st.session_state.print_queue:
         st.info("未选择任何文件打印")
 
     if st.button("返回"):
-        for key in ["batch_action", "batch_instances", "print_queue"]:
+        for key in ["batch_action", "batch_instances"]:
             if key in st.session_state:
                 del st.session_state[key]
+        st.session_state.show_print_ui = False
         st.rerun()
 
-elif "selected_instance_id" not in st.session_state:
+elif not st.session_state.get("show_print_ui", False) and "selected_instance_id" not in st.session_state:
     st.info("👈 请从左侧选择一个审批实例查看详情")
 else:
     instance_id = st.session_state.selected_instance_id
