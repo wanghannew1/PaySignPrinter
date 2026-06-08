@@ -316,6 +316,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     success_count = 0
     skip_count = 0
     fail_count = 0
+    print_count = 0
 
     for i, inst_id in enumerate(instances):
         progress = (i + 1) / len(instances)
@@ -340,6 +341,7 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
             logger.info(f"[UI] Success {display_id}: {result['message']}")
             st.success(f"✅ {display_id}: {result['message']}")
             success_count += 1
+            print_count += len(result.get("printed", []))
         else:
             logger.error(f"[UI] Failed {display_id}: {result['message']}")
             st.error(f"❌ {display_id}: {result['message']}")
@@ -348,13 +350,15 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     progress_bar.empty()
     st.divider()
     st.subheader("📊 处理结果")
-    cols = st.columns(3)
+    cols = st.columns(4)
     with cols[0]:
         st.metric("成功", success_count)
     with cols[1]:
         st.metric("跳过", skip_count)
     with cols[2]:
         st.metric("失败", fail_count)
+    with cols[3]:
+        st.metric("🖨️ 打印", print_count)
 
     if st.button("返回"):
         del st.session_state.batch_action

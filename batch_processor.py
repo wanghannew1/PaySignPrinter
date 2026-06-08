@@ -503,19 +503,16 @@ def process_single_approval(
                 if success:
                     logger.info(f"[BATCH] Signature insertion success: {inserted}")
                     result["signed"].extend(inserted)
-                    # Print disabled - uncomment when needed
-                    # if print_file(actual_signed_path):
-                    #     result["printed"].append(file_name)
+                    logger.info(f"[BATCH] Printing signed file: {actual_signed_path.name}")
+                    if print_file(actual_signed_path):
+                        result["printed"].append(file_name)
+                        logger.info(f"[BATCH] Print success: {file_name}")
+                    else:
+                        logger.warning(f"[BATCH] Print failed: {file_name}")
                 else:
                     logger.warning(f"[BATCH] Signature insertion failed for {file_name}")
-                    # Print disabled - uncomment when needed
-                    # if print_file(file_path):
-                    #     result["printed"].append(file_name)
             else:
                 logger.info(f"[BATCH] Non-Excel file, skipping signature: {file_name}")
-                # Print disabled - uncomment when needed
-                # if print_file(file_path):
-                #     result["printed"].append(file_name)
 
         except Exception as e:
             logger.error(f"[BATCH] Error processing {file_name}: {e}")
@@ -524,6 +521,7 @@ def process_single_approval(
     result["success"] = True
     result["message"] = (
         f"下载 {len(result['downloaded'])} 个, "
-        f"签名 {len(result['signed'])} 处"
+        f"签名 {len(result['signed'])} 处, "
+        f"打印 {len(result['printed'])} 个"
     )
     return result
