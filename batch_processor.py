@@ -49,20 +49,24 @@ def is_approval_passed(details: dict) -> Tuple[bool, str]:
 
 
 def get_approvers_with_roles(details: dict) -> List[Dict]:
-    """Get all approvers who agreed, with their roles."""
     records = details.get("operationRecords", [])
     approvers = []
     for record in records:
-        if record.get("type") in ("EXECUTE_TASK_NORMAL", "EXECUTE_TASK_TRANSFER"):
-            if record.get("result") == "AGREE":
-                show_name = record.get("showName", "")
+        rec_type = record.get("type", "")
+        show_name = record.get("showName", "")
+        result = record.get("result", "NONE")
+        print(f"[DEBUG] operationRecord: type={rec_type}, showName='{show_name}', result={result}")
+        if rec_type in ("EXECUTE_TASK_NORMAL", "EXECUTE_TASK_TRANSFER"):
+            if result == "AGREE":
                 role = get_approver_role(show_name)
+                print(f"[DEBUG]   matched role={role} for showName='{show_name}'")
                 if role:
                     approvers.append({
                         "userId": record.get("userId"),
                         "showName": show_name,
                         "role": role,
                     })
+    print(f"[DEBUG] Total approvers with roles: {len(approvers)}")
     return approvers
 
 
