@@ -191,24 +191,31 @@ def _insert_signature_to_excel_openpyxl(
 ) -> Tuple[bool, List[str], Path]:
     inserted_roles = []
     try:
+        logger.info(f"[SIGN] Loading workbook: {excel_path.name}")
         wb = load_workbook(str(excel_path))
         ws = wb.active
 
         positions = find_all_signature_positions(ws)
+        logger.info(f"[SIGN] Found positions: {positions}")
         if not positions:
+            logger.warning(f"[SIGN] No signature positions found in {excel_path.name}")
             return False, [], output_path
 
+        logger.info(f"[SIGN] Approvers: {[a['role'] for a in approvers]}")
         for approver in approvers:
             role = approver.get("role")
             user_id = approver.get("userId")
             if not role or not user_id:
+                logger.info(f"[SIGN] Skipping approver: missing role or userId")
                 continue
 
             if role not in positions:
+                logger.info(f"[SIGN] Role '{role}' not in positions")
                 continue
 
             sig_path = find_signature_image(user_id, signatures_dir)
             if not sig_path:
+                logger.warning(f"[SIGN] Signature image not found for user {user_id}")
                 continue
 
             row, col = positions[role]
@@ -220,52 +227,85 @@ def _insert_signature_to_excel_openpyxl(
             cell_addr = f"{ws.cell(row=row, column=target_col).coordinate}"
             ws.add_image(img, cell_addr)
             inserted_roles.append(role)
+            logger.info(f"[SIGN] Inserted signature for {role} at {cell_addr}")
 
         actual_output = _build_output_path(excel_path, output_path, ws)
         wb.save(str(actual_output))
+        logger.info(f"[SIGN] Saved to {actual_output.name}, inserted: {inserted_roles}")
         return len(inserted_roles) > 0, inserted_roles, actual_output
     except Exception as e:
-        print(f"插入签名失败: {e}")
+        logger.error(f"[SIGN] Insertion failed: {e}")
         return False, [], output_path
 
 
+def _convert_xls_to_xlsx_libreoffice(xls_path: Path) -> Optional[Path]:
+    """Convert .xls to .xlsx using LibreOffice (cross-platform, no Excel required)."""
+    xlsx_path = xls_path.with_suffix(".xlsx")
+    try:
+        import subprocess
+        result = subprocess.run(
+            [
+                "soffice",
+                "--headless",
+                "--convert-to", "xlsx",
+                str(xls_path.resolve()),
+                "--outdir", str(xls_path.parent.resolve()),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode == 0 and xlsx_path.exists():
+            return xlsx_path
+        else:
+            print(f"LibreOffice转换失败: {result.stderr}")
+            return None
+    except FileNotFoundError:
+        print("LibreOffice未安装或未在PATH中")
+        return None
+    except Exception as e:
+        print(f"LibreOffice转换异常: {e}")
+        return None
+
+
 def _convert_xls_to_xlsx_windows(xls_path: Path) -> Optional[Path]:
+    """Try Excel COM first, fallback to LibreOffice."""
     try:
         import pythoncom
         import win32com.client
         from win32com.client import constants
-    except ImportError:
-        print("转换xls需要 pywin32: pip install pywin32")
-        return None
 
-    pythoncom.CoInitialize()
-    excel = None
-    wb = None
+        pythoncom.CoInitialize()
+        excel = None
+        wb = None
 
-    try:
-        xlsx_path = xls_path.with_suffix(".xlsx")
-        excel = win32com.client.Dispatch("Excel.Application")
-        excel.Visible = False
-        excel.DisplayAlerts = False
-
-        wb = excel.Workbooks.Open(str(xls_path.resolve()))
-        wb.SaveAs(str(xlsx_path.resolve()), FileFormat=constants.xlOpenXMLWorkbook)
-        wb.Close(SaveChanges=False)
-        excel.Quit()
-
-        return xlsx_path
-    except Exception as e:
-        print(f"xls转换失败: {e}")
-        return None
-    finally:
         try:
-            if wb:
-                wb.Close(SaveChanges=False)
-            if excel:
-                excel.Quit()
-        except Exception:
-            pass
-        pythoncom.CoUninitialize()
+            xlsx_path = xls_path.with_suffix(".xlsx")
+            excel = win32com.client.Dispatch("Excel.Application")
+            excel.Visible = False
+            excel.DisplayAlerts = False
+
+            wb = excel.Workbooks.Open(str(xls_path.resolve()))
+            wb.SaveAs(str(xlsx_path.resolve()), FileFormat=constants.xlOpenXMLWorkbook)
+            wb.Close(SaveChanges=False)
+            excel.Quit()
+
+            return xlsx_path
+        except Exception as e:
+            print(f"Excel COM转换失败: {e}，尝试LibreOffice...")
+            return _convert_xls_to_xlsx_libreoffice(xls_path)
+        finally:
+            try:
+                if wb:
+                    wb.Close(SaveChanges=False)
+                if excel:
+                    excel.Quit()
+            except Exception:
+                pass
+            pythoncom.CoUninitialize()
+    except ImportError:
+        print("pywin32未安装，尝试LibreOffice...")
+        return _convert_xls_to_xlsx_libreoffice(xls_path)
 
 
 def _insert_signature_to_excel_windows(
