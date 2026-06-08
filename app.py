@@ -320,6 +320,9 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
         progress = (i + 1) / len(instances)
         progress_bar.progress(min(progress, 0.99))
 
+        with results_container:
+            st.write(f"⏳ 正在处理 {inst_id[:20]}...")
+
         result = process_single_approval(
             inst_id,
             st.session_state.access_token,
