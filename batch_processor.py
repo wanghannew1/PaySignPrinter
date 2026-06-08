@@ -18,11 +18,17 @@ import cache_manager
 
 
 # Mapping from approval role showName to Excel signature position keyword
+# Supports both old verbose names (e.g., "财务负责人审批") and new short names (e.g., "财务审核")
 ROLE_TO_SIGNATURE_KEYWORD = {
     "五险一金": "业务审核",
+    "业务审核": "业务审核",
     "部门负责人": "部长签字",
+    "部长签字": "部长签字",
+    "分管副总签字": "部长签字",
     "财务": "财务审核",
+    "财务审核": "财务审核",
     "总经理": "总经理签字",
+    "总经理签字": "总经理签字",
 }
 
 
@@ -52,21 +58,16 @@ def get_approvers_with_roles(details: dict) -> List[Dict]:
     records = details.get("operationRecords", [])
     approvers = []
     for record in records:
-        rec_type = record.get("type", "")
-        show_name = record.get("showName", "")
-        result = record.get("result", "NONE")
-        print(f"[DEBUG] operationRecord: type={rec_type}, showName='{show_name}', result={result}")
-        if rec_type in ("EXECUTE_TASK_NORMAL", "EXECUTE_TASK_TRANSFER"):
-            if result == "AGREE":
+        if record.get("type") in ("EXECUTE_TASK_NORMAL", "EXECUTE_TASK_TRANSFER"):
+            if record.get("result") == "AGREE":
+                show_name = record.get("showName", "")
                 role = get_approver_role(show_name)
-                print(f"[DEBUG]   matched role={role} for showName='{show_name}'")
                 if role:
                     approvers.append({
                         "userId": record.get("userId"),
                         "showName": show_name,
                         "role": role,
                     })
-    print(f"[DEBUG] Total approvers with roles: {len(approvers)}")
     return approvers
 
 
