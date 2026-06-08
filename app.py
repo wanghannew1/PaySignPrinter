@@ -363,6 +363,10 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
     with cols[2]:
         st.metric("失败", fail_count)
 
+    # Clear batch_action to prevent re-processing on rerun
+    if "batch_action" in st.session_state:
+        del st.session_state.batch_action
+
     if all_signed_files:
         st.divider()
         st.subheader("🖨️ 打印设置")
