@@ -243,8 +243,20 @@ def _apply_border_styles(ws, signature_positions):
 def _hide_columns(ws):
     """隐藏指定列：部门、岗位、职工号"""
     headers_to_hide = {"部门", "岗位", "职工号"}
+    header_row = None
+    for row in range(1, min(6, ws.max_row + 1)):
+        for col in range(1, ws.max_column + 1):
+            cell = ws.cell(row=row, column=col)
+            if cell.value and str(cell.value).strip() in headers_to_hide:
+                header_row = row
+                break
+        if header_row:
+            break
+    if not header_row:
+        logger.info("[PRINT] 未找到列头行，跳过隐藏")
+        return
     for col in range(1, ws.max_column + 1):
-        cell = ws.cell(row=3, column=col)
+        cell = ws.cell(row=header_row, column=col)
         if cell.value and str(cell.value).strip() in headers_to_hide:
             ws.column_dimensions[cell.column_letter].hidden = True
             logger.info(f"[PRINT] 隐藏列: {cell.column_letter} ({cell.value})")
