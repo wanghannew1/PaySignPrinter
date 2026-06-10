@@ -211,10 +211,8 @@ def _apply_border_styles(ws, signature_positions):
         sig_end = max(sig_rows)
         last_col = ws.max_column
 
-        border_start = sig_start
+        border_start = 3
         border_end = sig_end + 2
-        if total_row > 0 and total_row + 1 > border_start:
-            border_start = total_row + 1
 
         if border_start <= border_end:
             for r in range(border_start, border_end + 1):
@@ -234,7 +232,7 @@ def _apply_border_styles(ws, signature_positions):
                     else:
                         cell.border = Border(top=top, bottom=bottom, left=left, right=right)
 
-        logger.info(f"[BORDER] 签名行{border_start}-{border_end}内部清边框，仅保留外轮廓")
+        logger.info(f"[BORDER] 外框从第{border_start}行（列头）到第{border_end}行，签名行内部清边框")
     except Exception as e:
         logger.warning(f"[BORDER] 边框设置出错: {e}")
 
