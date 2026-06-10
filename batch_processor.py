@@ -183,6 +183,29 @@ def _build_output_path(excel_path: Path, output_path: Path, ws) -> Path:
     return output_path
 
 
+def adjust_excel_for_print(ws) -> None:
+    """
+    调整 Excel 打印设置：横向打印，A4 纸，左边距 2cm，其他边距 1cm，
+    所有列缩放到 1 页宽，水平居中。
+    在嵌入签名图片前调用。
+    """
+    try:
+        ws.page_setup.paperSize = 9          # A4
+        ws.page_setup.orientation = "landscape"
+        ws.page_setup.fitToWidth = 1         # 缩放到 1 页宽
+        ws.page_setup.fitToHeight = 0        # 高度自动分页
+        ws.page_margins.left = 0.8           # 2cm
+        ws.page_margins.right = 0.4          # 1cm
+        ws.page_margins.top = 0.4            # 1cm
+        ws.page_margins.bottom = 0.4         # 1cm
+        ws.print_options.horizontalCentered = True
+        ws.print_options.verticalCentered = False
+        ws.print_options.gridLines = True
+        logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽")
+    except Exception as e:
+        logger.warning(f"[PRINT] 调整打印设置时出错: {e}")
+
+
 def _insert_signature_to_excel_openpyxl(
     excel_path: Path,
     approvers: List[Dict],
@@ -194,6 +217,8 @@ def _insert_signature_to_excel_openpyxl(
         logger.info(f"[SIGN] Loading workbook: {excel_path.name}")
         wb = load_workbook(str(excel_path))
         ws = wb.active
+
+        adjust_excel_for_print(ws)
 
         positions = find_all_signature_positions(ws)
         logger.info(f"[SIGN] Found positions: {positions}")
