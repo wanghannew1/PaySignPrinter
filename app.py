@@ -651,10 +651,48 @@ else:
     with col2:
         st.subheader("表单数据")
         form_values = details.get("formComponentValues", [])
+
         for item in form_values:
-            if item.get("componentType") != "DDAttachment":
+            component_type = item.get("componentType", "")
+            if component_type == "DDAttachment":
+                continue
+
+            value = item.get("value", "")
+            if not value:
+                continue
+
+            if component_type == "TableField":
+                try:
+                    rows = json.loads(value) if isinstance(value, str) else value
+                    if isinstance(rows, list) and rows:
+                        columns = []
+                        for cell in rows[0].get("rowValue", []):
+                            label = cell.get("label", "")
+                            columns.append(label)
+                        data = []
+                        for row in rows:
+                            row_data = {}
+                            for cell in row.get("rowValue", []):
+                                label = cell.get("label", "")
+                                val = cell.get("value", "")
+                                extend = cell.get("extendValue", "")
+                                if extend:
+                                    try:
+                                        ext = json.loads(extend) if isinstance(extend, str) else extend
+                                        upper = ext.get("upper", "")
+                                        if upper:
+                                            val = f"{val}\n({upper})"
+                                    except (json.JSONDecodeError, TypeError):
+                                        pass
+                                row_data[label] = val
+                            data.append(row_data)
+                        st.dataframe(data, use_container_width=True)
+                    else:
+                        st.write(f"**{item.get('name', '未知字段')}:** {value}")
+                except (json.JSONDecodeError, TypeError):
+                    st.write(f"**{item.get('name', '未知字段')}:** {value}")
+            else:
                 name = item.get("name", "未知字段")
-                value = item.get("value", "")
                 st.write(f"**{name}:** {value}")
 
     st.divider()
