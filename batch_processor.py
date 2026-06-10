@@ -111,12 +111,16 @@ def _split_merged_for_text(ws, row, col):
 
     merged = _is_cell_in_merged_range(ws, row, col)
     if not merged:
+        cell = ws.cell(row=row, column=col)
+        if cell.value and "部长、分管副总签字" in str(cell.value):
+            cell.value = str(cell.value).replace("部长、分管副总签字", "部长签字")
         return col + 1
 
     cell = ws.cell(row=row, column=col)
     text = str(cell.value) if cell.value else ""
 
     if "部长、分管副总签字" in text:
+        cell.value = text.replace("部长、分管副总签字", "部长签字")
         needed_cols = 3
     else:
         needed_cols = 2
@@ -236,6 +240,16 @@ def _apply_border_styles(ws, signature_positions):
         logger.warning(f"[BORDER] 边框设置出错: {e}")
 
 
+def _hide_columns(ws):
+    """隐藏指定列：部门、岗位、职工号"""
+    headers_to_hide = {"部门", "岗位", "职工号"}
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=3, column=col)
+        if cell.value and str(cell.value).strip() in headers_to_hide:
+            ws.column_dimensions[cell.column_letter].hidden = True
+            logger.info(f"[PRINT] 隐藏列: {cell.column_letter} ({cell.value})")
+
+
 def adjust_excel_for_print(ws, signature_positions=None) -> None:
     """
     调整 Excel 打印设置：横向打印，A4 纸，左边距 2cm，其他边距 1cm，
@@ -256,6 +270,8 @@ def adjust_excel_for_print(ws, signature_positions=None) -> None:
         ws.print_options.verticalCentered = False
         ws.print_options.gridLines = False
         logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽, fitToPage=True, 网格线关闭")
+
+        _hide_columns(ws)
 
         if signature_positions:
             _apply_border_styles(ws, signature_positions)
