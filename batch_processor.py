@@ -199,7 +199,6 @@ def _find_total_row(ws) -> int:
 def _apply_border_styles(ws, signature_positions):
     from openpyxl.styles import Border, Side
     try:
-        thin = Side(style='thin', color='000000')
         thick = Side(style='medium', color='000000')
         none = Side(style=None)
 
@@ -208,31 +207,34 @@ def _apply_border_styles(ws, signature_positions):
         if not sig_rows:
             logger.info("[BORDER] 无签名位置，跳过边框设置")
             return
+        sig_start = min(sig_rows)
         sig_end = max(sig_rows)
         last_col = ws.max_column
 
-        if total_row == 0:
-            logger.info("[BORDER] 未找到合计行，跳过边框设置")
-            return
-
-        for r in range(1, total_row + 1):
-            for c in range(1, last_col + 1):
-                cell = ws.cell(row=r, column=c)
-                cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
-
+        border_start = sig_start
         border_end = sig_end + 2
-        if total_row + 1 <= border_end:
-            for r in range(total_row + 1, border_end + 1):
+        if total_row > 0 and total_row + 1 > border_start:
+            border_start = total_row + 1
+
+        if border_start <= border_end:
+            for r in range(border_start, border_end + 1):
                 for c in range(1, last_col + 1):
-                    top = thick if r == total_row + 1 else none
+                    top = thick if r == border_start else none
                     bottom = thick if r == border_end else none
                     left = thick if c == 1 else none
                     right = thick if c == last_col else none
-                    ws.cell(row=r, column=c).border = Border(
-                        top=top, bottom=bottom, left=left, right=right
-                    )
+                    cell = ws.cell(row=r, column=c)
+                    if cell.border:
+                        cell.border = Border(
+                            top=top if top else cell.border.top,
+                            bottom=bottom if bottom else cell.border.bottom,
+                            left=left if left else cell.border.left,
+                            right=right if right else cell.border.right,
+                        )
+                    else:
+                        cell.border = Border(top=top, bottom=bottom, left=left, right=right)
 
-        logger.info(f"[BORDER] 数据行1-{total_row}细边框，签名行{total_row+1}-{border_end}外轮廓")
+        logger.info(f"[BORDER] 签名行{border_start}-{border_end}内部清边框，仅保留外轮廓")
     except Exception as e:
         logger.warning(f"[BORDER] 边框设置出错: {e}")
 
