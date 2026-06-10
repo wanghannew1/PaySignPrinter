@@ -254,8 +254,8 @@ def adjust_excel_for_print(ws, signature_positions=None) -> None:
         ws.page_margins.bottom = 0.4         # 1cm
         ws.print_options.horizontalCentered = True
         ws.print_options.verticalCentered = False
-        ws.print_options.gridLines = True
-        logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽, fitToPage=True")
+        ws.print_options.gridLines = False
+        logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽, fitToPage=True, 网格线关闭")
 
         if signature_positions:
             _apply_border_styles(ws, signature_positions)
