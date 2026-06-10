@@ -183,7 +183,60 @@ def _build_output_path(excel_path: Path, output_path: Path, ws) -> Path:
     return output_path
 
 
-def adjust_excel_for_print(ws) -> None:
+def _find_total_row(ws) -> int:
+    keywords = ["合计", "总计", "合计金额", "合计费用", "合计支付"]
+    for row in range(1, ws.max_row + 1):
+        for col in range(1, ws.max_column + 1):
+            cell = ws.cell(row=row, column=col)
+            if cell.value:
+                val = str(cell.value).strip()
+                for kw in keywords:
+                    if kw in val:
+                        return row
+    return 0
+
+
+def _apply_border_styles(ws, signature_positions):
+    from openpyxl.styles import Border, Side
+    try:
+        thin = Side(style='thin', color='000000')
+        thick = Side(style='medium', color='000000')
+        none = Side(style=None)
+
+        total_row = _find_total_row(ws)
+        sig_rows = sorted({r for (r, _) in signature_positions.values()})
+        if not sig_rows:
+            logger.info("[BORDER] 无签名位置，跳过边框设置")
+            return
+        sig_end = max(sig_rows)
+        last_col = ws.max_column
+
+        if total_row == 0:
+            logger.info("[BORDER] 未找到合计行，跳过边框设置")
+            return
+
+        for r in range(1, total_row + 1):
+            for c in range(1, last_col + 1):
+                cell = ws.cell(row=r, column=c)
+                cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
+
+        if total_row + 1 <= sig_end:
+            for r in range(total_row + 1, sig_end + 1):
+                for c in range(1, last_col + 1):
+                    top = thick if r == total_row + 1 else none
+                    bottom = thick if r == sig_end else none
+                    left = thick if c == 1 else none
+                    right = thick if c == last_col else none
+                    ws.cell(row=r, column=c).border = Border(
+                        top=top, bottom=bottom, left=left, right=right
+                    )
+
+        logger.info(f"[BORDER] 数据行1-{total_row}细边框，签名行{total_row+1}-{sig_end}外轮廓")
+    except Exception as e:
+        logger.warning(f"[BORDER] 边框设置出错: {e}")
+
+
+def adjust_excel_for_print(ws, signature_positions=None) -> None:
     """
     调整 Excel 打印设置：横向打印，A4 纸，左边距 2cm，其他边距 1cm，
     所有列缩放到 1 页宽，水平居中。
@@ -203,6 +256,9 @@ def adjust_excel_for_print(ws) -> None:
         ws.print_options.verticalCentered = False
         ws.print_options.gridLines = True
         logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽, fitToPage=True")
+
+        if signature_positions:
+            _apply_border_styles(ws, signature_positions)
     except Exception as e:
         logger.warning(f"[PRINT] 调整打印设置时出错: {e}")
 
@@ -219,9 +275,8 @@ def _insert_signature_to_excel_openpyxl(
         wb = load_workbook(str(excel_path))
         ws = wb.active
 
-        adjust_excel_for_print(ws)
-
         positions = find_all_signature_positions(ws)
+        adjust_excel_for_print(ws, positions)
         logger.info(f"[SIGN] Found positions: {positions}")
         if not positions:
             logger.warning(f"[SIGN] No signature positions found in {excel_path.name}")
