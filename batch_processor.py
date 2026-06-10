@@ -192,8 +192,10 @@ def adjust_excel_for_print(ws) -> None:
     try:
         ws.page_setup.paperSize = 9          # A4
         ws.page_setup.orientation = "landscape"
+        ws.page_setup.fitToPage = True       # 必须启用，否则 fitToWidth 无效
         ws.page_setup.fitToWidth = 1         # 缩放到 1 页宽
         ws.page_setup.fitToHeight = 0        # 高度自动分页
+        ws.page_setup.scale = None           # 清除 scale，与 fitToWidth 互斥
         ws.page_margins.left = 0.8           # 2cm
         ws.page_margins.right = 0.4          # 1cm
         ws.page_margins.top = 0.4            # 1cm
@@ -201,7 +203,7 @@ def adjust_excel_for_print(ws) -> None:
         ws.print_options.horizontalCentered = True
         ws.print_options.verticalCentered = False
         ws.print_options.gridLines = True
-        logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽")
+        logger.info("[PRINT] 已调整: 横向A4, 左2cm其余1cm, 1页宽, fitToPage=True")
     except Exception as e:
         logger.warning(f"[PRINT] 调整打印设置时出错: {e}")
 
