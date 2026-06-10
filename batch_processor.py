@@ -241,14 +241,15 @@ def _apply_border_styles(ws, signature_positions):
 
 
 def _hide_columns(ws):
-    """隐藏指定列：部门、岗位、职工号"""
     headers_to_hide = {"部门", "岗位", "职工号"}
     header_row = 3
     for col in range(1, ws.max_column + 1):
         cell = ws.cell(row=header_row, column=col)
+        col_letter = cell.column_letter
+        hidden = ws.column_dimensions[col_letter].hidden
         if cell.value and str(cell.value).strip() in headers_to_hide:
-            ws.column_dimensions[cell.column_letter].hidden = True
-            logger.info(f"[PRINT] 隐藏列: {cell.column_letter} ({cell.value})")
+            hidden = True
+        ws.column_dimensions[col_letter].hidden = hidden
 
 
 def adjust_excel_for_print(ws, signature_positions=None) -> None:
