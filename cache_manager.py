@@ -110,6 +110,68 @@ def cache_file_path() -> Path:
     return CACHE_FILE
 
 
+def mark_as_printed(instance_id: str, business_id: str = "") -> None:
+    cache = _load_cache_file()
+    if "printed" not in cache:
+        cache["printed"] = {}
+    cache["printed"][instance_id] = {
+        "printed_at": time.time(),
+        "business_id": business_id,
+    }
+    _save_cache_file(cache)
+
+
+def is_printed(instance_id: str) -> bool:
+    cache = _load_cache_file()
+    return instance_id in cache.get("printed", {})
+
+
+def get_printed_status(instance_ids: List[str]) -> Dict[str, bool]:
+    cache = _load_cache_file()
+    printed = cache.get("printed", {})
+    return {iid: iid in printed for iid in instance_ids}
+
+
+def get_printed_business_ids() -> set:
+    cache = _load_cache_file()
+    printed = cache.get("printed", {})
+    return {v.get("business_id", "") for v in printed.values()}
+
+
+def get_printed_records() -> Dict[str, Dict]:
+    cache = _load_cache_file()
+    return dict(cache.get("printed", {}))
+
+
+def mark_printed_without_download(instance_id: str, business_id: str = "", title: str = "") -> None:
+    cache = _load_cache_file()
+    if "printed_no_download" not in cache:
+        cache["printed_no_download"] = {}
+    cache["printed_no_download"][instance_id] = {
+        "printed_at": time.time(),
+        "business_id": business_id,
+        "title": title,
+    }
+    cache = _mark_common_printed(cache, instance_id, business_id)
+    _save_cache_file(cache)
+
+
+def _mark_common_printed(cache, instance_id, business_id):
+    if "printed" not in cache:
+        cache["printed"] = {}
+    cache["printed"][instance_id] = {
+        "printed_at": time.time(),
+        "business_id": business_id,
+    }
+    return cache
+
+
+def get_unprinted_completed_ids(instance_ids: List[str]) -> List[str]:
+    cache = _load_cache_file()
+    printed = cache.get("printed", {})
+    return [iid for iid in instance_ids if iid not in printed]
+
+
 DOWNLOAD_URL_TTL = 15 * 60
 
 

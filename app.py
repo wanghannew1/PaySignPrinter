@@ -138,7 +138,7 @@ with st.sidebar:
 
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input("开始日期", value=datetime.now() - timedelta(days=30))
+        start_date = st.date_input("开始日期", value=datetime.now())
     with col2:
         end_date = st.date_input("结束日期", value=datetime.now())
 
@@ -148,14 +148,22 @@ with st.sidebar:
 
     status_options = {
         "已完结": ["COMPLETED"],
+        "已完结未打印": ["COMPLETED"],
         "审批中": ["RUNNING"],
         "已撤销": ["TERMINATED"],
         "全部": None,
     }
     selected_status = st.selectbox("审批状态", list(status_options.keys()), index=0)
     statuses = status_options[selected_status]
+    filter_unprinted = selected_status == "已完结未打印"
 
-    force_refresh = st.checkbox("🔄 强制刷新（绕过本地缓存）", value=False)
+    col1, col2 = st.columns(2)
+    with col1:
+        force_refresh = st.checkbox("🔄 强制刷新（绕过本地缓存）", value=False)
+    with col2:
+        if st.button("🔄 刷新列表", use_container_width=True):
+            st.session_state.force_refresh_list = True
+            st.rerun()
 
     if st.button("🔍 查询", type="primary", use_container_width=True):
         with st.spinner("正在查询审批列表..."):
@@ -254,50 +262,80 @@ with st.sidebar:
         st.subheader("审批列表")
 
         instance_info = st.session_state.get("instance_info", {})
-        selected_for_batch = []
+        all_ids = st.session_state.instance_ids
 
-        for idx, instance_id in enumerate(st.session_state.instance_ids):
-            info = instance_info.get(instance_id, {})
-            business_id = info.get("business_id", instance_id[:20])
-            status = info.get("status", "UNKNOWN")
-            status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
+        printed_status = cache_manager.get_printed_status(all_ids)
+        if filter_unprinted:
+            all_ids = [iid for iid in all_ids if not printed_status.get(iid, False)]
+            instance_info = {k: v for k, v in instance_info.items() if k in all_ids}
 
-            is_selected = instance_id == st.session_state.get("selected_instance_id")
+        if not all_ids:
+            st.info("没有未打印的已完结审批")
+        else:
+            all_selected = st.session_state.get("select_all_approvals", False)
+            if st.checkbox("全选", value=all_selected, key="select_all_master"):
+                st.session_state.select_all_approvals = True
+                for idx in range(len(all_ids)):
+                    st.session_state[f"chk_{idx}"] = True
+            else:
+                st.session_state.select_all_approvals = False
+                for idx in range(len(all_ids)):
+                    st.session_state[f"chk_{idx}"] = False
 
-            cols = st.columns([0.5, 4])
-            with cols[0]:
-                is_checked = st.checkbox("选择", key=f"chk_{idx}", label_visibility="collapsed")
-            with cols[1]:
-                if is_selected:
-                    button_label = f"🔍 {business_id}"
-                    btn_type = "primary"
-                else:
-                    button_label = f"{status_emoji} {business_id}"
-                    btn_type = "secondary"
-                if st.button(
-                    button_label,
-                    key=f"btn_{idx}",
-                    type=btn_type,
-                    use_container_width=True,
-                ):
-                    # 清除批量处理状态，避免rerun时重复执行
-                    for key in ["batch_action", "batch_instances"]:
-                        if key in st.session_state:
-                            del st.session_state[key]
-                    st.session_state.selected_instance_id = instance_id
-                    st.rerun()
+            selected_for_batch = []
 
-            if is_checked:
-                selected_for_batch.append(instance_id)
+            for idx, instance_id in enumerate(all_ids):
+                info = instance_info.get(instance_id, {})
+                business_id = info.get("business_id", instance_id[:20])
+                status = info.get("status", "UNKNOWN")
+                status_emoji = {"COMPLETED": "✅", "RUNNING": "🔄", "TERMINATED": "❌"}.get(status, "📋")
+                is_printed = printed_status.get(instance_id, False)
+                print_mark = "✓" if is_printed else ""
 
-        if selected_for_batch:
-            st.divider()
-            st.write(f"已选择 {len(selected_for_batch)} 条审批")
+                is_selected = instance_id == st.session_state.get("selected_instance_id")
 
-            if st.button("📥 批量下载", use_container_width=True):
-                st.session_state.batch_action = "download"
-                st.session_state.batch_instances = selected_for_batch
-                st.rerun()
+                cols = st.columns([0.5, 4])
+                with cols[0]:
+                    is_checked = st.checkbox("选择", key=f"chk_{idx}", label_visibility="collapsed")
+                    if is_checked:
+                        selected_for_batch.append(instance_id)
+                with cols[1]:
+                    if is_selected:
+                        button_label = f"🔍 {business_id} {print_mark}"
+                        btn_type = "primary"
+                    else:
+                        button_label = f"{status_emoji} {business_id} {print_mark}"
+                        btn_type = "secondary"
+                    if st.button(
+                        button_label,
+                        key=f"btn_{idx}",
+                        type=btn_type,
+                        use_container_width=True,
+                    ):
+                        for key in ["batch_action", "batch_instances"]:
+                            if key in st.session_state:
+                                del st.session_state[key]
+                        st.session_state.selected_instance_id = instance_id
+                        st.rerun()
+
+            if selected_for_batch:
+                st.divider()
+                st.write(f"已选择 {len(selected_for_batch)} 条审批")
+                bcol1, bcol2 = st.columns(2)
+                with bcol1:
+                    if st.button("📥 批量下载", use_container_width=True):
+                        st.session_state.batch_action = "download"
+                        st.session_state.batch_instances = selected_for_batch
+                        st.rerun()
+                with bcol2:
+                    if st.button("✓ 标记已打印", use_container_width=True):
+                        for iid in selected_for_batch:
+                            info = instance_info.get(iid, {})
+                            cache_manager.mark_printed_without_download(
+                                iid, info.get("business_id", iid[:20]), info.get("title", "")
+                            )
+                        st.success(f"✓ 已标记 {len(selected_for_batch)} 条审批为已打印")
+                        st.rerun()
 
     if "print_queue" in st.session_state and st.session_state.print_queue:
         st.divider()
@@ -417,7 +455,10 @@ if "batch_action" in st.session_state and st.session_state.batch_action:
 
         st.session_state.show_print_ui = True
 
-    # Clear batch_action to prevent re-processing on rerun
+        for iid in instances:
+            info = st.session_state.get("instance_info", {}).get(iid, {})
+            cache_manager.mark_as_printed(iid, info.get("business_id", iid[:20]))
+
     if "batch_action" in st.session_state:
         del st.session_state.batch_action
 
@@ -523,6 +564,10 @@ if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_
                 print_progress.progress((i + 1) / len(all_selected))
             print_progress.empty()
             st.success(f"🎉 打印完成！成功 {printed_count}/{len(all_selected)} 个")
+            if printed_count > 0:
+                for iid in st.session_state.get("batch_instances", []):
+                    info = st.session_state.get("instance_info", {}).get(iid, {})
+                    cache_manager.mark_as_printed(iid, info.get("business_id", iid[:20]))
     else:
         st.info("未选择任何文件打印")
 
@@ -534,7 +579,26 @@ if st.session_state.get("show_print_ui", False) and "print_queue" in st.session_
         st.rerun()
 
 elif not st.session_state.get("show_print_ui", False) and "selected_instance_id" not in st.session_state:
-    st.info("👈 请从左侧选择一个审批实例查看详情")
+    if st.session_state.get("show_summary_ui", False):
+        st.subheader("📊 汇总统计")
+        printed_records = cache_manager.get_printed_records()
+        if printed_records:
+            st.write(f"已打印记录: {len(printed_records)} 条")
+            for iid, rec in printed_records.items():
+                bid = rec.get("business_id", iid[:20])
+                ts = rec.get("printed_at", 0)
+                dt = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M") if ts else ""
+                st.write(f"  ✓ {bid}  ({dt})")
+        else:
+            st.info("暂无打印记录")
+        if st.button("返回"):
+            st.session_state.show_summary_ui = False
+            st.rerun()
+    else:
+        st.info("👈 请从左侧选择一个审批实例查看详情")
+        if st.button("📊 查看汇总"):
+            st.session_state.show_summary_ui = True
+            st.rerun()
 else:
     instance_id = st.session_state.selected_instance_id
 
