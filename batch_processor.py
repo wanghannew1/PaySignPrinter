@@ -220,18 +220,19 @@ def _apply_border_styles(ws, signature_positions):
                 cell = ws.cell(row=r, column=c)
                 cell.border = Border(top=thin, bottom=thin, left=thin, right=thin)
 
-        if total_row + 1 <= sig_end:
-            for r in range(total_row + 1, sig_end + 1):
+        border_end = sig_end + 2
+        if total_row + 1 <= border_end:
+            for r in range(total_row + 1, border_end + 1):
                 for c in range(1, last_col + 1):
                     top = thick if r == total_row + 1 else none
-                    bottom = thick if r == sig_end else none
+                    bottom = thick if r == border_end else none
                     left = thick if c == 1 else none
                     right = thick if c == last_col else none
                     ws.cell(row=r, column=c).border = Border(
                         top=top, bottom=bottom, left=left, right=right
                     )
 
-        logger.info(f"[BORDER] 数据行1-{total_row}细边框，签名行{total_row+1}-{sig_end}外轮廓")
+        logger.info(f"[BORDER] 数据行1-{total_row}细边框，签名行{total_row+1}-{border_end}外轮廓")
     except Exception as e:
         logger.warning(f"[BORDER] 边框设置出错: {e}")
 
