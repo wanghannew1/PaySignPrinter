@@ -192,10 +192,9 @@ def adjust_excel_for_print(ws) -> None:
     try:
         ws.page_setup.paperSize = 9          # A4
         ws.page_setup.orientation = "landscape"
-        ws.page_setup.fitToPage = True       # 必须启用，否则 fitToWidth 无效
+        ws.sheet_properties.pageSetUpPr.fitToPage = True  # 正确路径，必须先启用
         ws.page_setup.fitToWidth = 1         # 缩放到 1 页宽
         ws.page_setup.fitToHeight = 0        # 高度自动分页
-        ws.page_setup.scale = None           # 清除 scale，与 fitToWidth 互斥
         ws.page_margins.left = 0.8           # 2cm
         ws.page_margins.right = 0.4          # 1cm
         ws.page_margins.top = 0.4            # 1cm
