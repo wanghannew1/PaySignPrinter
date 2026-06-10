@@ -217,22 +217,21 @@ def _apply_border_styles(ws, signature_positions):
         if border_start <= border_end:
             for r in range(border_start, border_end + 1):
                 for c in range(1, last_col + 1):
-                    top = thick if r == border_start else none
-                    bottom = thick if r == border_end else none
-                    left = thick if c == 1 else none
-                    right = thick if c == last_col else none
+                    is_top = r == border_start
+                    is_bottom = r == border_end
+                    is_left = c == 1
+                    is_right = c == last_col
+                    if not (is_top or is_bottom or is_left or is_right):
+                        continue
                     cell = ws.cell(row=r, column=c)
-                    if cell.border:
-                        cell.border = Border(
-                            top=top if top else cell.border.top,
-                            bottom=bottom if bottom else cell.border.bottom,
-                            left=left if left else cell.border.left,
-                            right=right if right else cell.border.right,
-                        )
-                    else:
-                        cell.border = Border(top=top, bottom=bottom, left=left, right=right)
+                    cell.border = Border(
+                        top=thick if is_top else cell.border.top,
+                        bottom=thick if is_bottom else cell.border.bottom,
+                        left=thick if is_left else cell.border.left,
+                        right=thick if is_right else cell.border.right,
+                    )
 
-        logger.info(f"[BORDER] 外框从第{border_start}行（列头）到第{border_end}行，签名行内部清边框")
+        logger.info(f"[BORDER] 外框从第{border_start}行到第{border_end}行，内部单元格边框保留")
     except Exception as e:
         logger.warning(f"[BORDER] 边框设置出错: {e}")
 
