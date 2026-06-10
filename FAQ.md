@@ -155,4 +155,49 @@ wb.SaveAs(..., FileFormat=51)  # 51 = xlsx格式码
 
 ---
 
-*最后更新：2026-06-08*
+## Q7: 列宽正常但打印时某列"不见了"，WPS 里拖滚动条也看不到
+
+**现象：**
+- 代码理论只隐藏了 D/E/F 列（部门、岗位、职工号）
+- 但 G 列（基本工资）也看不见，拖动滚动条也找不到
+- 实际列宽正常（13.0），`hidden=False`
+- 用 raw XML 检查发现 `<col min="4" max="7" hidden="1"/>`，D-G 四列被合并隐藏
+
+**原因：openpyxl 列节点合并 bug**
+
+openpyxl 在保存文件时，会把**连续的、属性相同的列**合并成一个 XML 节点：
+
+```xml
+<!-- 代码意图：只隐藏 D(4)、E(5)、F(6) -->
+<!-- openpyxl 保存结果：D-G(4-7) 合并成一组全部隐藏 -->
+<col min="4" max="7" hidden="1"/>
+```
+
+当你隐藏 D、E、F 三列时，openpyxl 创建 `<col min=4 max=6 hidden=1/>`。但如果 G 列（7）没有**独立的** `<col>` 节点，openpyxl 会把范围扩展到 4-7，导致 G 列被**连带隐藏**。
+
+这是 openpyxl 的一个已知设计行为：`ColumnDimensionHolder` 自动合并连续的 `col` 节点以减小 XML 体积，但不会为未显式设置属性的中间列创建独立节点。
+
+**解决：**
+
+在 `batch_processor.py` 的 `_hide_columns()` 中，**对所有列**都显式读写 `hidden` 属性：
+
+```python
+def _hide_columns(ws):
+    headers_to_hide = {"部门", "岗位", "职工号"}
+    header_row = 3
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=header_row, column=col)
+        col_letter = cell.column_letter
+        hidden = ws.column_dimensions[col_letter].hidden  # 读原始状态
+        if cell.value and str(cell.value).strip() in headers_to_hide:
+            hidden = True  # 匹配的列设为隐藏
+        ws.column_dimensions[col_letter].hidden = hidden  # 显式写回
+```
+
+关键：**每列都需要显式写一次 `hidden`**——即使是 `False`。这样 openpyxl 就会为每列生成独立的 `<col>` 节点，不会合并。
+
+**相关 Commit：** `2211216` - fix: prevent openpyxl from merging hidden columns into groups
+
+---
+
+*最后更新：2026-06-10*
