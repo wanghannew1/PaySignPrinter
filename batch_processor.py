@@ -606,6 +606,10 @@ def process_single_approval(
         file_name = att.get("fileName", "unknown")
         file_type = att.get("fileType", "")
 
+        if "汇总表" in file_name:
+            logger.info(f"[BATCH] Skipping summary table: {file_name}")
+            continue
+
         try:
             logger.info(f"[BATCH] Processing attachment: {file_name}")
             download_url = cache_manager.get_cached_download_url(instance_id, file_id)
