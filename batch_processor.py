@@ -131,7 +131,10 @@ def is_payroll_sheet(ws, config: Optional[dict] = None) -> bool:
         return False
 
     # 条件 2：三签必达（总经理签字 + 部长签字 + 财务审核）
-    mandatory = sf["signatures"]["mandatory"]
+    mandatory = {
+        k: v for k, v in sf["signatures"]["mandatory"].items()
+        if k != "description"
+    }
     found = set()
     for row in range(1, ws.max_row + 1):
         for col in range(1, ws.max_column + 1):
@@ -147,13 +150,15 @@ def is_payroll_sheet(ws, config: Optional[dict] = None) -> bool:
     if len(found) < len(mandatory):
         return False
 
-    # 条件 3：第二行含"单位名称"
+    # 条件 3：第二行含"单位名称"（对空格容错）
     row2_text = ""
     for col in range(1, ws.max_column + 1):
         cell = ws.cell(row=2, column=col)
         if cell.value:
             row2_text += str(cell.value).strip()
-    if sf["row2_org"]["required_keyword"] not in row2_text:
+    normalized = row2_text.replace(" ", "").replace("\u3000", "")
+    req_normalized = sf["row2_org"]["required_keyword"].replace(" ", "").replace("\u3000", "")
+    if req_normalized not in normalized:
         return False
 
     # 条件 4：第三行列头必须包含所有必需字段
