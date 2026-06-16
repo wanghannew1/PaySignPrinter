@@ -439,6 +439,13 @@ def _insert_signature_to_excel_openpyxl(
             logger.info(f"[SIGN] Inserted signature for {role} at {cell_addr}")
 
         actual_output = _build_output_path(excel_path, output_path, payroll_ws)
+
+        # 删除非工资发放表的 sheet，确保打印不包含工会会费、验证结果等
+        sheets_to_remove = [sn for sn in wb.sheetnames if sn != payroll_ws.title]
+        for sn in sheets_to_remove:
+            del wb[sn]
+            logger.info(f"[SIGN] Removed non-payroll sheet: {sn}")
+
         wb.save(str(actual_output))
         logger.info(f"[SIGN] Saved to {actual_output.name}, inserted: {inserted_roles}")
         return len(inserted_roles) > 0, inserted_roles, actual_output
