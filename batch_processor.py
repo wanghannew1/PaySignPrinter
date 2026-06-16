@@ -39,6 +39,43 @@ def _load_role_mapping():
     }
 
 
+def _load_payroll_config() -> dict:
+    """Load payroll sheet detection rules from config file."""
+    config_path = Path(__file__).parent / "payroll_sheet_config.json"
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning(f"加载工资表配置失败: {e}，使用内置默认值")
+    # 内置默认值（与 payroll_sheet_config.json 保持一致）
+    return {
+        "sheet_filter": {
+            "row1_title":      {"required_keyword": "工资发放表"},
+            "row2_org":        {"required_keyword": "单位名称"},
+            "row3_headers":    {"required": ["转账合计", "应发工资", "实发工资", "实发合计"]},
+            "signatures": {
+                "mandatory": {
+                    "总经理签字": ["总经理签字"],
+                    "部长签字":   ["部长签字", "部长、分管副总签字", "分管副总签字"],
+                    "财务审核":   ["财务审核"],
+                },
+                "optional": {},
+            },
+        }
+    }
+
+
+_PAYROLL_CONFIG = None
+
+
+def get_payroll_config() -> dict:
+    global _PAYROLL_CONFIG
+    if _PAYROLL_CONFIG is None:
+        _PAYROLL_CONFIG = _load_payroll_config()
+    return _PAYROLL_CONFIG
+
+
 def get_approver_role(show_name: str) -> Optional[str]:
     show_name_lower = show_name.lower()
     mapping = _load_role_mapping()
@@ -78,8 +115,61 @@ def get_approvers_with_roles(details: dict) -> List[Dict]:
     return approvers
 
 
+def is_payroll_sheet(ws, config: Optional[dict] = None) -> bool:
+    """判断 worksheet 是否为应打印的工资发放表，规则全部从配置读取。"""
+    cfg = config or get_payroll_config()
+    sf = cfg["sheet_filter"]
+
+    # 条件 1：第一行标题必须含"工资发放表"
+    row1_text = ""
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=1, column=col)
+        if cell.value:
+            row1_text += str(cell.value).strip()
+    req = sf["row1_title"]["required_keyword"]
+    if req not in row1_text:
+        return False
+
+    # 条件 2：三签必达（总经理签字 + 部长签字 + 财务审核）
+    mandatory = sf["signatures"]["mandatory"]
+    found = set()
+    for row in range(1, ws.max_row + 1):
+        for col in range(1, ws.max_column + 1):
+            cell_val = str(ws.cell(row=row, column=col).value or "")
+            for role, keywords in mandatory.items():
+                if role not in found:
+                    if any(kw in cell_val for kw in keywords):
+                        found.add(role)
+            if len(found) == len(mandatory):
+                break
+        if len(found) == len(mandatory):
+            break
+    if len(found) < len(mandatory):
+        return False
+
+    # 条件 3：第二行含"单位名称"
+    row2_text = ""
+    for col in range(1, ws.max_column + 1):
+        cell = ws.cell(row=2, column=col)
+        if cell.value:
+            row2_text += str(cell.value).strip()
+    if sf["row2_org"]["required_keyword"] not in row2_text:
+        return False
+
+    # 条件 4：第三行列头必须包含所有必需字段
+    required = set(sf["row3_headers"]["required"])
+    row3_headers = set()
+    for col in range(1, ws.max_column + 1):
+        cell_val = str(ws.cell(row=3, column=col).value or "").strip()
+        if cell_val:
+            row3_headers.add(cell_val)
+    if not required.issubset(row3_headers):
+        return False
+
+    return True
+
+
 def find_signature_image(user_id: str, signatures_dir: Path) -> Optional[Path]:
-    """Find signature image for a user."""
     if not user_id:
         return None
     sig_path = signatures_dir / f"{user_id}.png"
@@ -142,15 +232,17 @@ def _split_merged_for_text(ws, row, col):
     return new_end + 1
 
 
-def find_all_signature_positions(ws) -> Dict[str, Tuple[int, int]]:
-    """Find all signature positions in the worksheet."""
+def find_all_signature_positions(ws, config: Optional[dict] = None) -> Dict[str, Tuple[int, int]]:
     positions = {}
-    keyword_groups = [
-        (["总经理签字"], "总经理签字"),
-        (["部长签字", "部长、分管副总签字", "分管副总签字"], "部长签字"),
-        (["财务审核"], "财务审核"),
-        (["业务审核"], "业务审核"),
-    ]
+    cfg = config or get_payroll_config()
+    sf = cfg["sheet_filter"]["signatures"]
+
+    # 合并必签 + 可选签，生成 keyword_groups
+    keyword_groups = []
+    for role, keywords in sf.get("mandatory", {}).items():
+        keyword_groups.append((keywords, role))
+    for role, keywords in sf.get("optional", {}).items():
+        keyword_groups.append((keywords, role))
 
     for row in range(1, ws.max_row + 1):
         for col in range(1, ws.max_column + 1):
@@ -291,10 +383,23 @@ def _insert_signature_to_excel_openpyxl(
     try:
         logger.info(f"[SIGN] Loading workbook: {excel_path.name}")
         wb = load_workbook(str(excel_path))
-        ws = wb.active
 
-        positions = find_all_signature_positions(ws)
-        adjust_excel_for_print(ws, positions)
+        # 找到第一个工资发放表 sheet（多 sheet 时过滤工会会费、验证结果等）
+        cfg = get_payroll_config()
+        payroll_ws = None
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            if is_payroll_sheet(ws, cfg):
+                payroll_ws = ws
+                logger.info(f"[SIGN] Found payroll sheet: {sheet_name}")
+                break
+
+        if payroll_ws is None:
+            logger.warning(f"[SIGN] No payroll sheet found in {excel_path.name}")
+            return False, [], output_path
+
+        positions = find_all_signature_positions(payroll_ws, cfg)
+        adjust_excel_for_print(payroll_ws, positions)
         logger.info(f"[SIGN] Found positions: {positions}")
         if not positions:
             logger.warning(f"[SIGN] No signature positions found in {excel_path.name}")
@@ -318,17 +423,17 @@ def _insert_signature_to_excel_openpyxl(
                 continue
 
             row, col = positions[role]
-            target_col = _split_merged_for_text(ws, row, col)
+            target_col = _split_merged_for_text(payroll_ws, row, col)
 
             img = XLImage(str(sig_path))
             img.width = 120
             img.height = 60
-            cell_addr = f"{ws.cell(row=row, column=target_col).coordinate}"
-            ws.add_image(img, cell_addr)
+            cell_addr = f"{payroll_ws.cell(row=row, column=target_col).coordinate}"
+            payroll_ws.add_image(img, cell_addr)
             inserted_roles.append(role)
             logger.info(f"[SIGN] Inserted signature for {role} at {cell_addr}")
 
-        actual_output = _build_output_path(excel_path, output_path, ws)
+        actual_output = _build_output_path(excel_path, output_path, payroll_ws)
         wb.save(str(actual_output))
         logger.info(f"[SIGN] Saved to {actual_output.name}, inserted: {inserted_roles}")
         return len(inserted_roles) > 0, inserted_roles, actual_output
