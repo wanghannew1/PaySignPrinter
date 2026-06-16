@@ -11,7 +11,7 @@ from dingtalk_api import (
 )
 import cache_manager
 from logger_config import logger
-from batch_processor import print_file
+from batch_processor import is_ready_for_print, print_file
 
 
 def load_user_mapping():
@@ -147,6 +147,7 @@ with st.sidebar:
     end_timestamp = int(datetime.combine(end_date, datetime.max.time()).timestamp() * 1000)
 
     status_options = {
+        "审批完成待出纳办理": ["RUNNING"],   # 审批人已批、出纳待办 → 可以打印
         "已完结": ["COMPLETED"],
         "已完结未打印": ["COMPLETED"],
         "审批中": ["RUNNING"],
@@ -156,6 +157,7 @@ with st.sidebar:
     selected_status = st.selectbox("审批状态", list(status_options.keys()), index=0)
     statuses = status_options[selected_status]
     filter_unprinted = selected_status == "已完结未打印"
+    filter_ready_for_print = selected_status == "审批完成待出纳办理"
 
     col1, col2 = st.columns(2)
     with col1:
@@ -229,6 +231,19 @@ with st.sidebar:
                             }
                     progress_text.empty()
                     st.session_state.instance_info = instance_info
+
+                    if filter_ready_for_print:
+                        ready_ids = []
+                        for inst_id in ids:
+                            details = instance_info.get(inst_id)
+                            if details and details.get("status") == "RUNNING":
+                                cached = cache_manager.get_cached_instance_details(inst_id)
+                                if cached and is_ready_for_print(cached):
+                                    ready_ids.append(inst_id)
+                        ids = ready_ids
+                        st.session_state.instance_ids = ids
+                        instance_info = {k: v for k, v in instance_info.items() if k in ids}
+                        st.session_state.instance_info = instance_info
                     if api_call_count > 0:
                         st.success(f"✓ 查询成功，共 {len(ids)} 条审批（API调用 {api_call_count} 次，缓存命中 {cache_hit_count} 次）")
                     else:

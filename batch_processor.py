@@ -86,7 +86,6 @@ def get_approver_role(show_name: str) -> Optional[str]:
 
 
 def is_approval_passed(details: dict) -> Tuple[bool, str]:
-    """Check if approval is passed (all required approvers agreed)."""
     records = details.get("operationRecords", [])
     for record in records:
         if record.get("type") in ("EXECUTE_TASK_NORMAL", "EXECUTE_TASK_TRANSFER"):
@@ -96,6 +95,29 @@ def is_approval_passed(details: dict) -> Tuple[bool, str]:
             elif result == "BACK":
                 return False, f"审批被退回: {record.get('showName', '')}"
     return True, "审批通过"
+
+
+def is_ready_for_print(details: dict) -> bool:
+    """审批人已全部批准、只差出纳办理 → 可以打印工资表。"""
+    records = details.get("operationRecords", [])
+
+    # 配置中必签角色
+    cfg = get_payroll_config()
+    mandatory_roles = set(
+        cfg["sheet_filter"]["signatures"]["mandatory"].keys()
+    ) - {"description"}
+
+    approved_roles = set()
+    for record in records:
+        if record.get("type") not in ("EXECUTE_TASK_NORMAL", "EXECUTE_TASK_TRANSFER"):
+            continue
+        if record.get("result") != "AGREE":
+            return False
+        role = get_approver_role(record.get("showName", ""))
+        if role:
+            approved_roles.add(role)
+
+    return mandatory_roles.issubset(approved_roles)
 
 
 def get_approvers_with_roles(details: dict) -> List[Dict]:
