@@ -273,12 +273,11 @@ with st.sidebar:
             st.info("没有未打印的已完结审批")
         else:
             all_selected = st.session_state.get("select_all_approvals", False)
-            select_all_changed = st.checkbox("全选", value=all_selected, key="select_all_master")
+            select_all_changed = st.checkbox("全选", key="select_all_master", value=all_selected)
             if select_all_changed != all_selected:
                 st.session_state.select_all_approvals = select_all_changed
                 for idx in range(len(all_ids)):
-                    if f"chk_{idx}" in st.session_state:
-                        del st.session_state[f"chk_{idx}"]
+                    st.session_state[f"chk_{idx}"] = select_all_changed
 
             selected_for_batch = []
 
@@ -294,8 +293,7 @@ with st.sidebar:
 
                 cols = st.columns([0.5, 4])
                 with cols[0]:
-                    default_checked = st.session_state.get("select_all_approvals", False)
-                    is_checked = st.checkbox("选择", key=f"chk_{idx}", value=default_checked, label_visibility="collapsed")
+                    is_checked = st.checkbox("选择", key=f"chk_{idx}", label_visibility="collapsed")
                     if is_checked:
                         selected_for_batch.append(instance_id)
                 with cols[1]:
